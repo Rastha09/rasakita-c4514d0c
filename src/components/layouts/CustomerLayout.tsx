@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, ClipboardList, ShoppingCart, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CartBadge } from '@/components/customer/CartBadge';
 
 interface CustomerLayoutProps {
   children: ReactNode;
@@ -11,7 +12,7 @@ const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/search', icon: Search, label: 'Cari' },
   { path: '/orders', icon: ClipboardList, label: 'Pesanan' },
-  { path: '/cart', icon: ShoppingCart, label: 'Keranjang' },
+  { path: '/cart', icon: ShoppingCart, label: 'Keranjang', hasBadge: true },
   { path: '/account', icon: User, label: 'Akun' },
 ];
 
@@ -38,16 +39,19 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 h-full transition-colors",
+                  "flex flex-col items-center justify-center flex-1 h-full transition-colors relative",
                   isActive ? "text-nav-active" : "text-nav-foreground"
                 )}
               >
-                <Icon 
-                  className={cn(
-                    "h-5 w-5 mb-1 transition-transform",
-                    isActive && "scale-110"
-                  )} 
-                />
+                <div className="relative">
+                  <Icon 
+                    className={cn(
+                      "h-5 w-5 mb-1 transition-transform",
+                      isActive && "scale-110"
+                    )} 
+                  />
+                  {item.hasBadge && <CartBadge />}
+                </div>
                 <span className="text-xs font-medium">{item.label}</span>
               </Link>
             );
