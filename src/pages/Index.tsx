@@ -1,11 +1,33 @@
+import { useQuery } from '@tanstack/react-query';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
+import { ProductCard } from '@/components/customer/ProductCard';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { ShoppingBag, ArrowRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: products, isLoading } = useQuery({
+    queryKey: ['products', 'home'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleProductClick = (slug: string) => {
+    navigate(`/product/${slug}`);
+  };
 
   return (
     <CustomerLayout>
@@ -25,19 +47,30 @@ const Index = () => {
           )}
         </div>
 
-        {/* Demo Products */}
+        {/* Products */}
         <h2 className="text-lg font-semibold mb-4">Produk Populer</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {['Nasi Goreng Spesial', 'Mie Ayam Bakso', 'Es Teh Manis', 'Ayam Geprek'].map((name, i) => (
-            <div key={i} className="bg-card rounded-xl p-3 shadow-card">
-              <div className="aspect-square bg-muted rounded-lg mb-2 flex items-center justify-center">
-                <ShoppingBag className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-medium text-sm truncate">{name}</h3>
-              <p className="text-primary font-semibold text-sm">Rp {(15000 + i * 5000).toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : products && products.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                onClick={() => handleProductClick(product.slug)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-muted-foreground">
+            <p>Belum ada produk tersedia</p>
+          </div>
+        )}
       </div>
     </CustomerLayout>
   );
