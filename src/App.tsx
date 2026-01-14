@@ -22,6 +22,10 @@ import CheckoutPage from "./pages/customer/CheckoutPage";
 import OrdersPage from "./pages/customer/OrdersPage";
 import OrderDetailPage from "./pages/customer/OrderDetailPage";
 import AccountPage from "./pages/customer/AccountPage";
+import PaymentPage from "./pages/customer/PaymentPage";
+
+// Admin Pages
+import PaymentsDebugPage from "./pages/admin/PaymentsDebugPage";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +61,11 @@ const App = () => (
                   <OrderDetailPage />
                 </RouteGuard>
               } />
+              <Route path="/payment/:orderId" element={
+                <RouteGuard requireAuth allowedRoles={['CUSTOMER', 'ADMIN', 'SUPER_ADMIN']}>
+                  <PaymentPage />
+                </RouteGuard>
+              } />
               <Route path="/account" element={
                 <RouteGuard requireAuth>
                   <AccountPage />
@@ -67,6 +76,11 @@ const App = () => (
               <Route path="/admin" element={
                 <RouteGuard allowedRoles={['ADMIN']}>
                   <AdminDashboard />
+                </RouteGuard>
+              } />
+              <Route path="/admin/settings/payments-debug" element={
+                <RouteGuard allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                  <PaymentsDebugPage />
                 </RouteGuard>
               } />
               <Route path="/admin/*" element={

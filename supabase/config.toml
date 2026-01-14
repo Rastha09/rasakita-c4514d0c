@@ -1,1 +1,10 @@
 project_id = "jxqrvhevblsfjlwrbkay"
+
+[functions.duitku-create-invoice]
+verify_jwt = false
+
+[functions.duitku-callback]
+verify_jwt = false
+
+[functions.duitku-simulate]
+verify_jwt = false

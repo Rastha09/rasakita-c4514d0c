@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot, CreditCard, QrCode } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: 'Pesanan Baru',
@@ -51,9 +52,10 @@ interface CustomerAddress {
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const queryClient = useQueryClient();
 
-  const { data: orderData, isLoading } = useQuery({
+  const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
       if (!orderId) throw new Error('No order ID');
@@ -73,10 +75,68 @@ export default function OrderDetailPage() {
         .eq('store_id', order.store_id)
         .single();
 
-      return { order, settings };
+      // Fetch latest payment if QRIS
+      let payment = null;
+      if (order.payment_method === 'QRIS') {
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('order_id', orderId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        payment = paymentData;
+      }
+
+      return { order, settings, payment };
     },
     enabled: !!orderId && !!user,
   });
+
+  // Create invoice mutation for retry
+  const createInvoiceMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/duitku-create-invoice`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ orderId }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create invoice');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Invoice pembayaran berhasil dibuat');
+      navigate(`/payment/${orderId}`);
+    },
+    onError: (error) => {
+      console.error('Create invoice error:', error);
+      toast.error('Gagal membuat invoice pembayaran');
+    },
+  });
+
+  const handlePayNow = () => {
+    const payment = orderData?.payment;
+    // Check if there's an active payment
+    if (payment && payment.status === 'PENDING' && payment.expired_at && new Date(payment.expired_at) > new Date()) {
+      // Use existing payment
+      navigate(`/payment/${orderId}`);
+    } else {
+      // Create new invoice
+      createInvoiceMutation.mutate();
+    }
+  };
 
   const order = orderData?.order;
   const settings = orderData?.settings;
@@ -106,10 +166,16 @@ export default function OrderDetailPage() {
   const customerAddress = order.customer_address as unknown as CustomerAddress | null;
   const timeline = order.shipping_method === 'COURIER' ? TIMELINE_COURIER : TIMELINE_PICKUP;
   const currentStatusIndex = timeline.indexOf(order.order_status);
+  const payment = orderData?.payment;
+
+  // Check if QRIS payment needs action
+  const isQrisUnpaid = order.payment_method === 'QRIS' && order.payment_status === 'UNPAID';
+  const isQrisExpired = order.payment_method === 'QRIS' && order.payment_status === 'EXPIRED';
+  const needsPaymentAction = isQrisUnpaid || isQrisExpired;
 
   return (
     <CustomerLayout>
-      <div className="px-4 py-4 pb-8">
+      <div className="px-4 py-4 pb-24">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <Button
@@ -276,6 +342,28 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Sticky Payment Action for QRIS */}
+      {needsPaymentAction && (
+        <div className="fixed bottom-16 left-0 right-0 bg-background border-t border-border p-4 safe-bottom z-40">
+          <Button
+            className="w-full h-12 rounded-full text-base font-semibold"
+            onClick={handlePayNow}
+            disabled={createInvoiceMutation.isPending}
+          >
+            {createInvoiceMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Memproses...
+              </>
+            ) : isQrisExpired ? (
+              'Buat Pembayaran Baru'
+            ) : (
+              'Bayar Sekarang'
+            )}
+          </Button>
+        </div>
+      )}
     </CustomerLayout>
   );
 }

@@ -26,7 +26,7 @@ interface AddressForm {
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, subtotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('COURIER');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
@@ -83,6 +83,7 @@ export default function CheckoutPage() {
   const shippingFee = shippingMethod === 'COURIER' ? (settings?.shipping_fee_flat || 10000) : 0;
   const total = subtotal + shippingFee;
 
+  // COD order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!store || !user) throw new Error('Missing data');
@@ -140,6 +141,84 @@ export default function CheckoutPage() {
     },
   });
 
+  // QRIS order mutation - creates order then redirects to payment
+  const createQrisOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (!store || !user || !session?.access_token) throw new Error('Missing data');
+
+      const orderItems = items.map((item) => ({
+        product_id: item.product_id,
+        name: item.name,
+        price: item.price,
+        qty: item.qty,
+        notes: item.notes || null,
+        subtotal: item.price * item.qty,
+      }));
+
+      const customerAddress = shippingMethod === 'COURIER' ? {
+        name: addressForm.name,
+        phone: addressForm.phone,
+        address: addressForm.address,
+      } : null;
+
+      // Generate order code
+      const { data: orderCode, error: codeError } = await supabase.rpc('generate_order_code');
+      if (codeError) throw codeError;
+
+      // Create order with QRIS payment method
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert({
+          store_id: store.id,
+          customer_id: user.id,
+          order_code: orderCode,
+          items: orderItems,
+          subtotal,
+          shipping_fee: shippingFee,
+          total,
+          shipping_method: shippingMethod,
+          payment_method: 'QRIS',
+          payment_status: 'UNPAID',
+          order_status: 'NEW',
+          customer_address: customerAddress,
+          notes: addressForm.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create Duitku invoice
+      const invoiceResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/duitku-create-invoice`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ orderId: order.id }),
+        }
+      );
+
+      const invoiceResult = await invoiceResponse.json();
+      if (!invoiceResponse.ok) {
+        throw new Error(invoiceResult.error || 'Failed to create invoice');
+      }
+
+      return order;
+    },
+    onSuccess: (order) => {
+      clearCart();
+      toast.success('Pesanan berhasil dibuat! Silakan lakukan pembayaran.');
+      navigate(`/payment/${order.id}`);
+    },
+    onError: (error) => {
+      console.error('QRIS Order error:', error);
+      toast.error('Gagal membuat pesanan. Silakan coba lagi.');
+    },
+  });
+
   const handleSubmit = () => {
     if (shippingMethod === 'COURIER') {
       if (!addressForm.name || !addressForm.phone || !addressForm.address) {
@@ -147,10 +226,15 @@ export default function CheckoutPage() {
         return;
       }
     }
-    createOrderMutation.mutate();
+
+    if (paymentMethod === 'QRIS') {
+      createQrisOrderMutation.mutate();
+    } else {
+      createOrderMutation.mutate();
+    }
   };
 
-  const isLoading = createOrderMutation.isPending;
+  const isLoading = createOrderMutation.isPending || createQrisOrderMutation.isPending;
 
   if (!store || !settings) {
     return (
@@ -283,17 +367,33 @@ export default function CheckoutPage() {
                 <span className="text-xs text-muted-foreground">Bayar di Tempat</span>
               </button>
             )}
-            <button
-              className={cn(
-                'flex flex-col items-center p-4 rounded-2xl border-2 transition-colors opacity-50 cursor-not-allowed',
-                'border-border bg-card'
-              )}
-              disabled
-            >
-              <CreditCard className="h-6 w-6 mb-2 text-muted-foreground" />
-              <span className="text-sm font-medium">QRIS</span>
-              <span className="text-xs text-muted-foreground">Segera Hadir</span>
-            </button>
+            {settings.payment_qris_enabled ? (
+              <button
+                className={cn(
+                  'flex flex-col items-center p-4 rounded-2xl border-2 transition-colors',
+                  paymentMethod === 'QRIS'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-card'
+                )}
+                onClick={() => setPaymentMethod('QRIS')}
+              >
+                <CreditCard className={cn('h-6 w-6 mb-2', paymentMethod === 'QRIS' ? 'text-primary' : 'text-muted-foreground')} />
+                <span className="text-sm font-medium">QRIS</span>
+                <span className="text-xs text-muted-foreground">Scan & Bayar</span>
+              </button>
+            ) : (
+              <button
+                className={cn(
+                  'flex flex-col items-center p-4 rounded-2xl border-2 transition-colors opacity-50 cursor-not-allowed',
+                  'border-border bg-card'
+                )}
+                disabled
+              >
+                <CreditCard className="h-6 w-6 mb-2 text-muted-foreground" />
+                <span className="text-sm font-medium">QRIS</span>
+                <span className="text-xs text-muted-foreground">Tidak Tersedia</span>
+              </button>
+            )}
           </div>
         </div>
 
