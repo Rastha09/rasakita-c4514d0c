@@ -118,7 +118,7 @@ serve(async (req) => {
       merchantOrderId,
       productDetails,
       email: customerEmail,
-      paymentMethod: 'SP', // QRIS
+      paymentMethod: 'GQ', // QRIS Gudang Voucher - works in sandbox
       returnUrl: Deno.env.get('DUITKU_RETURN_URL') || `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/orders/${orderId}`,
       callbackUrl: Deno.env.get('DUITKU_CALLBACK_URL') || `${supabaseUrl}/functions/v1/duitku-callback`,
       signature,
