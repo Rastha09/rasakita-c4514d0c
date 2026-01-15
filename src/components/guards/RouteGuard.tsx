@@ -9,12 +9,14 @@ interface RouteGuardProps {
   children: ReactNode;
   allowedRoles?: AllowedRole[];
   requireAuth?: boolean;
+  customerOnly?: boolean; // If true, redirect ADMIN/SUPER_ADMIN to their dashboard
 }
 
 export function RouteGuard({ 
   children, 
   allowedRoles, 
-  requireAuth = false 
+  requireAuth = false,
+  customerOnly = false 
 }: RouteGuardProps) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
@@ -30,6 +32,16 @@ export function RouteGuard({
   // If auth is required but user is not logged in
   if (requireAuth && !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If this is a customer-only route and user is logged in with ADMIN/SUPER_ADMIN role
+  if (customerOnly && user && profile) {
+    if (profile.role === 'SUPER_ADMIN') {
+      return <Navigate to="/superadmin" replace />;
+    }
+    if (profile.role === 'ADMIN') {
+      return <Navigate to="/admin" replace />;
+    }
   }
 
   // If specific roles are required

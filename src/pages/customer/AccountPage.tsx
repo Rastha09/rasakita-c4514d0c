@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Phone, Mail, LogOut, Loader2, Edit2, Check, X } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Loader2, Edit2, Check, X, ShieldCheck, Store } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function AccountPage() {
@@ -65,13 +65,26 @@ export default function AccountPage() {
     setIsEditing(false);
   };
 
+  // Determine layout based on role
+  const isAdmin = profile?.role === 'ADMIN';
+  const isSuperAdmin = profile?.role === 'SUPER_ADMIN';
+  const isNonCustomer = isAdmin || isSuperAdmin;
+
+  // For ADMIN/SUPER_ADMIN, don't wrap in CustomerLayout
+  const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
+    if (isNonCustomer) {
+      return <div className="min-h-screen bg-background p-4">{children}</div>;
+    }
+    return <CustomerLayout>{children}</CustomerLayout>;
+  };
+
   if (loading) {
     return (
-      <CustomerLayout>
+      <ContentWrapper>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </CustomerLayout>
+      </ContentWrapper>
     );
   }
 
@@ -95,9 +108,32 @@ export default function AccountPage() {
   }
 
   return (
-    <CustomerLayout>
-      <div className="px-4 py-4">
+    <ContentWrapper>
+      <div className="max-w-lg mx-auto">
         <h1 className="text-xl font-bold mb-4">Akun Saya</h1>
+
+        {/* Admin/SuperAdmin Quick Access */}
+        {isNonCustomer && (
+          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Akses Cepat</h3>
+            {isSuperAdmin && (
+              <Button asChild className="w-full rounded-full mb-2" variant="default">
+                <Link to="/superadmin">
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                  Masuk Super Admin
+                </Link>
+              </Button>
+            )}
+            {isAdmin && (
+              <Button asChild className="w-full rounded-full" variant="default">
+                <Link to="/admin">
+                  <Store className="h-4 w-4 mr-2" />
+                  Masuk Admin
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Profile Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
@@ -199,6 +235,6 @@ export default function AccountPage() {
           Keluar
         </Button>
       </div>
-    </CustomerLayout>
+    </ContentWrapper>
   );
 }
