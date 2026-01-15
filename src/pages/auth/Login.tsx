@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,22 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, getRedirectPath } = useAuth();
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const { signIn, profile, user } = useAuth();
   const navigate = useNavigate();
+
+  // Watch for profile to be loaded after login, then redirect
+  useEffect(() => {
+    if (loginSuccess && user && profile) {
+      let redirectPath = '/';
+      if (profile.role === 'SUPER_ADMIN') {
+        redirectPath = '/superadmin';
+      } else if (profile.role === 'ADMIN') {
+        redirectPath = '/admin';
+      }
+      navigate(redirectPath);
+    }
+  }, [loginSuccess, user, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +39,8 @@ export default function Login() {
       setLoading(false);
     } else {
       toast.success('Berhasil masuk!');
-      setTimeout(() => navigate(getRedirectPath()), 100);
+      setLoginSuccess(true);
+      // Profile will be loaded by auth context, useEffect will handle redirect
     }
   };
 

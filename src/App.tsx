@@ -12,8 +12,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 
 // Customer Pages
 import SearchPage from "./pages/customer/SearchPage";
@@ -25,7 +23,18 @@ import AccountPage from "./pages/customer/AccountPage";
 import PaymentPage from "./pages/customer/PaymentPage";
 
 // Admin Pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
+import AdminProductsPage from "./pages/admin/AdminProductsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import PaymentsDebugPage from "./pages/admin/PaymentsDebugPage";
+
+// Super Admin Pages
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
+import SuperAdminStoresPage from "./pages/superadmin/SuperAdminStoresPage";
+import SuperAdminUsersPage from "./pages/superadmin/SuperAdminUsersPage";
+import SuperAdminOrdersPage from "./pages/superadmin/SuperAdminOrdersPage";
+import SuperAdminSettingsPage from "./pages/superadmin/SuperAdminSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -39,30 +48,42 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/cart" element={<CartPage />} />
               
-              {/* Customer protected routes */}
+              {/* Customer routes - with role check to redirect admin/superadmin */}
+              <Route path="/" element={
+                <RouteGuard customerOnly>
+                  <Index />
+                </RouteGuard>
+              } />
+              <Route path="/search" element={
+                <RouteGuard customerOnly>
+                  <SearchPage />
+                </RouteGuard>
+              } />
+              <Route path="/cart" element={
+                <RouteGuard customerOnly>
+                  <CartPage />
+                </RouteGuard>
+              } />
               <Route path="/checkout" element={
-                <RouteGuard requireAuth allowedRoles={['CUSTOMER', 'ADMIN', 'SUPER_ADMIN']}>
+                <RouteGuard requireAuth customerOnly>
                   <CheckoutPage />
                 </RouteGuard>
               } />
               <Route path="/orders" element={
-                <RouteGuard requireAuth allowedRoles={['CUSTOMER', 'ADMIN', 'SUPER_ADMIN']}>
+                <RouteGuard requireAuth customerOnly>
                   <OrdersPage />
                 </RouteGuard>
               } />
               <Route path="/orders/:orderId" element={
-                <RouteGuard requireAuth allowedRoles={['CUSTOMER', 'ADMIN', 'SUPER_ADMIN']}>
+                <RouteGuard requireAuth customerOnly>
                   <OrderDetailPage />
                 </RouteGuard>
               } />
               <Route path="/payment/:orderId" element={
-                <RouteGuard requireAuth allowedRoles={['CUSTOMER', 'ADMIN', 'SUPER_ADMIN']}>
+                <RouteGuard requireAuth customerOnly>
                   <PaymentPage />
                 </RouteGuard>
               } />
@@ -78,14 +99,24 @@ const App = () => (
                   <AdminDashboard />
                 </RouteGuard>
               } />
+              <Route path="/admin/orders" element={
+                <RouteGuard allowedRoles={['ADMIN']}>
+                  <AdminOrdersPage />
+                </RouteGuard>
+              } />
+              <Route path="/admin/products" element={
+                <RouteGuard allowedRoles={['ADMIN']}>
+                  <AdminProductsPage />
+                </RouteGuard>
+              } />
+              <Route path="/admin/settings" element={
+                <RouteGuard allowedRoles={['ADMIN']}>
+                  <AdminSettingsPage />
+                </RouteGuard>
+              } />
               <Route path="/admin/settings/payments-debug" element={
                 <RouteGuard allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
                   <PaymentsDebugPage />
-                </RouteGuard>
-              } />
-              <Route path="/admin/*" element={
-                <RouteGuard allowedRoles={['ADMIN']}>
-                  <AdminDashboard />
                 </RouteGuard>
               } />
 
@@ -95,9 +126,24 @@ const App = () => (
                   <SuperAdminDashboard />
                 </RouteGuard>
               } />
-              <Route path="/superadmin/*" element={
+              <Route path="/superadmin/stores" element={
                 <RouteGuard allowedRoles={['SUPER_ADMIN']}>
-                  <SuperAdminDashboard />
+                  <SuperAdminStoresPage />
+                </RouteGuard>
+              } />
+              <Route path="/superadmin/users" element={
+                <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+                  <SuperAdminUsersPage />
+                </RouteGuard>
+              } />
+              <Route path="/superadmin/orders" element={
+                <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+                  <SuperAdminOrdersPage />
+                </RouteGuard>
+              } />
+              <Route path="/superadmin/settings" element={
+                <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+                  <SuperAdminSettingsPage />
                 </RouteGuard>
               } />
 
