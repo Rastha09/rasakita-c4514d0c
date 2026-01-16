@@ -21,6 +21,7 @@ import OrdersPage from "./pages/customer/OrdersPage";
 import OrderDetailPage from "./pages/customer/OrderDetailPage";
 import AccountPage from "./pages/customer/AccountPage";
 import PaymentPage from "./pages/customer/PaymentPage";
+import ProductDetailPage from "./pages/customer/ProductDetailPage";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -60,6 +61,11 @@ const App = () => (
               <Route path="/search" element={
                 <RouteGuard customerOnly>
                   <SearchPage />
+                </RouteGuard>
+              } />
+              <Route path="/product/:slug" element={
+                <RouteGuard customerOnly>
+                  <ProductDetailPage />
                 </RouteGuard>
               } />
               <Route path="/cart" element={
