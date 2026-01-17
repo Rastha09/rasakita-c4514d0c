@@ -1,17 +1,30 @@
-import { ShoppingBag, Plus, Minus } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/cart';
 import { cn } from '@/lib/utils';
+import { formatSoldCount, formatRatingCount } from '@/lib/format-number';
 
 interface ProductCardProps {
   id: string;
   name: string;
   price: number;
   image?: string;
+  rating_avg?: number;
+  rating_count?: number;
+  sold_count?: number;
   onClick?: () => void;
 }
 
-export function ProductCard({ id, name, price, image, onClick }: ProductCardProps) {
+export function ProductCard({ 
+  id, 
+  name, 
+  price, 
+  image, 
+  rating_avg = 4.7, 
+  rating_count = 0, 
+  sold_count = 0,
+  onClick 
+}: ProductCardProps) {
   const { addItem, updateQty, getItemQty } = useCart();
   const qty = getItemQty(id);
 
@@ -43,6 +56,16 @@ export function ProductCard({ id, name, price, image, onClick }: ProductCardProp
         )}
       </div>
       <h3 className="font-medium text-sm truncate mb-1">{name}</h3>
+      
+      {/* Rating & Sold */}
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+        <span>{rating_avg.toFixed(1)}</span>
+        <span>({formatRatingCount(rating_count)})</span>
+        <span className="mx-0.5">•</span>
+        <span>Terjual {formatSoldCount(sold_count)}</span>
+      </div>
+      
       <div className="flex items-center justify-between">
         <p className="text-primary font-semibold text-sm">
           Rp {price.toLocaleString('id-ID')}

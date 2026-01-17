@@ -57,6 +57,7 @@ export type Database = {
           payment_status: string
           shipping_fee: number
           shipping_method: string
+          sold_counted: boolean
           store_id: string
           subtotal: number
           total: number
@@ -74,6 +75,7 @@ export type Database = {
           payment_status?: string
           shipping_fee?: number
           shipping_method?: string
+          sold_counted?: boolean
           store_id: string
           subtotal?: number
           total?: number
@@ -91,6 +93,7 @@ export type Database = {
           payment_status?: string
           shipping_fee?: number
           shipping_method?: string
+          sold_counted?: boolean
           store_id?: string
           subtotal?: number
           total?: number
@@ -175,7 +178,10 @@ export type Database = {
           is_active: boolean
           name: string
           price: number
+          rating_avg: number
+          rating_count: number
           slug: string
+          sold_count: number
           stock: number
           store_id: string
         }
@@ -188,7 +194,10 @@ export type Database = {
           is_active?: boolean
           name: string
           price?: number
+          rating_avg?: number
+          rating_count?: number
           slug: string
+          sold_count?: number
           stock?: number
           store_id: string
         }
@@ -201,7 +210,10 @@ export type Database = {
           is_active?: boolean
           name?: string
           price?: number
+          rating_avg?: number
+          rating_count?: number
           slug?: string
+          sold_count?: number
           stock?: number
           store_id?: string
         }

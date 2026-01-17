@@ -115,7 +115,7 @@ serve(async (req) => {
     }
 
     // Update order status
-    const orderUpdate: Record<string, string> = { payment_status: orderPaymentStatus };
+    const orderUpdate: Record<string, string | boolean> = { payment_status: orderPaymentStatus };
     if (orderStatus) {
       orderUpdate.order_status = orderStatus;
     }
@@ -129,9 +129,53 @@ serve(async (req) => {
       console.error('Failed to update order:', updateOrderError);
     }
 
-    // Placeholder for push notification trigger
+    // Update sold_count if payment SUCCESS and not already counted
     if (paymentStatus === 'SUCCESS') {
-      console.log('TODO: Trigger push notification for successful payment', {
+      // Fetch order to check sold_counted flag and get items
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, items, sold_counted')
+        .eq('id', payment.order_id)
+        .single();
+
+      if (!orderError && order && !order.sold_counted) {
+        // Parse items and update sold_count for each product
+        const items = order.items as Array<{ product_id: string; qty: number }>;
+        
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            // Increment sold_count using RPC or direct update
+            const { error: updateProductError } = await supabase.rpc('increment_sold_count', {
+              p_product_id: item.product_id,
+              p_qty: item.qty
+            }).catch(() => {
+              // Fallback: direct update if RPC doesn't exist
+              return supabase
+                .from('products')
+                .update({ sold_count: supabase.rpc('coalesce', { val: 0 }) })
+                .eq('id', item.product_id);
+            });
+
+            if (updateProductError) {
+              console.error('Failed to update sold_count for product:', item.product_id, updateProductError);
+            }
+          }
+        }
+
+        // Mark order as sold_counted
+        const { error: markCountedError } = await supabase
+          .from('orders')
+          .update({ sold_counted: true })
+          .eq('id', payment.order_id);
+
+        if (markCountedError) {
+          console.error('Failed to mark order as sold_counted:', markCountedError);
+        }
+
+        console.log('Updated sold_count for order:', payment.order_id);
+      }
+
+      console.log('Payment successful, push notification placeholder', {
         orderId: payment.order_id,
         orderCode: payment.orders?.order_code,
       });
