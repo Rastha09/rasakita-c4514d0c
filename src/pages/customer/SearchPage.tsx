@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { getProductThumb } from '@/lib/product-image';
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
@@ -80,6 +81,10 @@ export default function SearchPage() {
                 id={product.id}
                 name={product.name}
                 price={product.price}
+                image={getProductThumb(product)}
+                rating_avg={product.rating_avg}
+                rating_count={product.rating_count}
+                sold_count={product.sold_count}
                 onClick={() => handleProductClick(product.slug)}
               />
             ))}

@@ -144,16 +144,10 @@ serve(async (req) => {
         
         if (Array.isArray(items)) {
           for (const item of items) {
-            // Increment sold_count using RPC or direct update
+            // Increment sold_count using database function
             const { error: updateProductError } = await supabase.rpc('increment_sold_count', {
               p_product_id: item.product_id,
               p_qty: item.qty
-            }).catch(() => {
-              // Fallback: direct update if RPC doesn't exist
-              return supabase
-                .from('products')
-                .update({ sold_count: supabase.rpc('coalesce', { val: 0 }) })
-                .eq('id', item.product_id);
             });
 
             if (updateProductError) {

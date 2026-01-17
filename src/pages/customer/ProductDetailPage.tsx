@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ShoppingBag, Minus, Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import { ShoppingBag, Minus, Plus, ArrowLeft, Loader2, Star } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/lib/cart';
 import { toast } from '@/hooks/use-toast';
+import { formatSoldCount, formatRatingCount } from '@/lib/format-number';
+import { getProductThumb } from '@/lib/product-image';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -31,12 +33,10 @@ export default function ProductDetailPage() {
   const cartQty = product ? getItemQty(product.id) : 0;
   const isInCart = cartQty > 0;
 
-  // Get first image from images array
+  // Get product image
   const getProductImage = useCallback(() => {
-    if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
-      return product.images[0] as string;
-    }
-    return null;
+    if (!product) return null;
+    return getProductThumb(product);
   }, [product]);
 
   // Debounced toast
@@ -168,7 +168,17 @@ export default function ProductDetailPage() {
         <div className="px-4 py-6 space-y-4">
           <div>
             <h1 className="text-2xl font-bold">{product.name}</h1>
-            <p className="text-2xl font-bold text-primary mt-2">
+            
+            {/* Rating & Sold */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span className="font-medium">{(product.rating_avg || 4.7).toFixed(1)}</span>
+              <span>({formatRatingCount(product.rating_count || 0)} ulasan)</span>
+              <span className="mx-1">•</span>
+              <span>Terjual {formatSoldCount(product.sold_count || 0)}</span>
+            </div>
+            
+            <p className="text-2xl font-bold text-primary mt-3">
               Rp {product.price.toLocaleString('id-ID')}
             </p>
           </div>

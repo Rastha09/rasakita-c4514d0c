@@ -372,6 +372,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_sold_count: {
+        Args: { p_product_id: string; p_qty: number }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "SUPER_ADMIN" | "ADMIN" | "CUSTOMER"

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getProductThumb } from '@/lib/product-image';
 
 const Index = () => {
   const { user, profile } = useAuth();
@@ -62,6 +63,10 @@ const Index = () => {
                 id={product.id}
                 name={product.name}
                 price={product.price}
+                image={getProductThumb(product)}
+                rating_avg={product.rating_avg}
+                rating_count={product.rating_count}
+                sold_count={product.sold_count}
                 onClick={() => handleProductClick(product.slug)}
               />
             ))}
