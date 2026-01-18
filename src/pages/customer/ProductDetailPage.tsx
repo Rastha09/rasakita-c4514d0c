@@ -9,6 +9,7 @@ import { useCart } from '@/lib/cart';
 import { toast } from '@/hooks/use-toast';
 import { formatSoldCount, formatRatingCount } from '@/lib/format-number';
 import { getProductThumb } from '@/lib/product-image';
+import { ProductReviewSection } from '@/components/customer/ProductReviewSection';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -199,6 +200,13 @@ export default function ProductDetailPage() {
             </span>
           </div>
         </div>
+
+        {/* Reviews Section */}
+        <ProductReviewSection
+          productId={product.id}
+          ratingAvg={product.rating_avg || 4.7}
+          ratingCount={product.rating_count || 0}
+        />
       </div>
 
       {/* Sticky Bottom Bar */}
