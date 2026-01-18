@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot, CreditCard, QrCode } from 'lucide-react';
+import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot, Star } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProductThumb } from '@/components/customer/ProductThumb';
+import { ReviewModal } from '@/components/customer/ReviewModal';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProductsByIds } from '@/lib/product-image';
 import { useAuth } from '@/lib/auth';
@@ -56,6 +58,8 @@ export default function OrderDetailPage() {
   const navigate = useNavigate();
   const { user, session } = useAuth();
   const queryClient = useQueryClient();
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string } | null>(null);
 
   const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['order', orderId],
@@ -96,6 +100,22 @@ export default function OrderDetailPage() {
       const productsMap = await fetchProductsByIds(productIds);
 
       return { order, settings, payment, productsMap };
+    },
+    enabled: !!orderId && !!user,
+  });
+
+  // Fetch existing reviews for this order
+  const { data: existingReviews } = useQuery({
+    queryKey: ['product-reviews', orderId],
+    queryFn: async () => {
+      if (!orderId || !user) return [];
+      const { data, error } = await supabase
+        .from('product_reviews')
+        .select('product_id')
+        .eq('order_id', orderId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data.map((r) => r.product_id);
     },
     enabled: !!orderId && !!user,
   });
@@ -175,6 +195,17 @@ export default function OrderDetailPage() {
   const currentStatusIndex = timeline.indexOf(order.order_status);
   const payment = orderData?.payment;
   const productsMap = orderData?.productsMap;
+  const isCompleted = order.order_status === 'COMPLETED';
+
+  // Helper to check if product can be reviewed
+  const canReview = (productId: string) => {
+    return isCompleted && !existingReviews?.includes(productId);
+  };
+
+  const handleOpenReview = (productId: string, productName: string) => {
+    setSelectedProduct({ id: productId, name: productName });
+    setReviewModalOpen(true);
+  };
 
   // Check if QRIS payment needs action
   const isQrisUnpaid = order.payment_method === 'QRIS' && order.payment_status === 'UNPAID';
@@ -301,28 +332,53 @@ export default function OrderDetailPage() {
           <h2 className="font-semibold flex items-center gap-2 mb-3">
             <Package className="h-4 w-4" /> Detail Pesanan
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {items.map((item, index) => {
               const product = productsMap?.get(item.product_id);
+              const reviewable = canReview(item.product_id);
+              const hasReviewed = existingReviews?.includes(item.product_id);
               return (
-                <div key={index} className="flex gap-3">
-                  <ProductThumb
-                    images={product?.images}
-                    name={item.name}
-                    size="lg"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.qty} x Rp {item.price.toLocaleString('id-ID')}
+                <div key={index} className="space-y-2">
+                  <div className="flex gap-3">
+                    <ProductThumb
+                      images={product?.images}
+                      name={item.name}
+                      size="lg"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.qty} x Rp {item.price.toLocaleString('id-ID')}
+                      </p>
+                      {item.notes && (
+                        <p className="text-xs text-muted-foreground italic mt-1">"{item.notes}"</p>
+                      )}
+                    </div>
+                    <p className="font-medium text-sm">
+                      Rp {item.subtotal.toLocaleString('id-ID')}
                     </p>
-                    {item.notes && (
-                      <p className="text-xs text-muted-foreground italic mt-1">"{item.notes}"</p>
-                    )}
                   </div>
-                  <p className="font-medium text-sm">
-                    Rp {item.subtotal.toLocaleString('id-ID')}
-                  </p>
+                  {/* Review Button */}
+                  {isCompleted && (
+                    <div className="pl-16">
+                      {hasReviewed ? (
+                        <Badge variant="secondary" className="rounded-full text-xs">
+                          <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
+                          Sudah Diulas
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-full text-xs"
+                          onClick={() => handleOpenReview(item.product_id, item.name)}
+                        >
+                          <Star className="h-3 w-3 mr-1" />
+                          Beri Ulasan
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -381,6 +437,18 @@ export default function OrderDetailPage() {
             )}
           </Button>
         </div>
+      )}
+
+      {/* Review Modal */}
+      {selectedProduct && user && orderId && (
+        <ReviewModal
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          orderId={orderId}
+          userId={user.id}
+        />
       )}
     </CustomerLayout>
   );
