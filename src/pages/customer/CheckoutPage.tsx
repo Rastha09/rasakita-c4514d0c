@@ -79,11 +79,30 @@ export default function CheckoutPage() {
     },
   });
 
-  // Batch fetch product images for cart items
+  // Batch fetch product data including stock for cart items
   const productIds = items.map((item) => item.product_id);
-  const { data: productsMap } = useQuery({
+  const { data: productsMap, refetch: refetchProducts } = useQuery({
     queryKey: ['checkout-products', productIds],
-    queryFn: () => fetchProductsByIds(productIds),
+    queryFn: async () => {
+      const map = await fetchProductsByIds(productIds);
+      // Also fetch stock info
+      const { data: stockData } = await supabase
+        .from('products')
+        .select('id, name, stock')
+        .in('id', productIds);
+      if (stockData) {
+        stockData.forEach((p) => {
+          const existing = map.get(p.id);
+          if (existing) {
+            (existing as any).stock = p.stock;
+            (existing as any).name = p.name;
+          } else {
+            map.set(p.id, { ...p, images: null } as any);
+          }
+        });
+      }
+      return map;
+    },
     enabled: productIds.length > 0,
   });
 
@@ -229,10 +248,22 @@ export default function CheckoutPage() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (shippingMethod === 'COURIER') {
       if (!addressForm.name || !addressForm.phone || !addressForm.address) {
         toast.error('Lengkapi data pengiriman');
+        return;
+      }
+    }
+
+    // Validate stock before creating order
+    await refetchProducts();
+    
+    for (const item of items) {
+      const product = productsMap?.get(item.product_id) as any;
+      const stock = product?.stock ?? 0;
+      if (item.qty > stock) {
+        toast.error(`Stok tidak cukup untuk ${item.name} (tersisa ${stock})`);
         return;
       }
     }

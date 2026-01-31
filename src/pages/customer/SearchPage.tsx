@@ -85,6 +85,7 @@ export default function SearchPage() {
                 rating_avg={product.rating_avg}
                 rating_count={product.rating_count}
                 sold_count={product.sold_count}
+                stock={product.stock}
                 onClick={() => handleProductClick(product.slug)}
               />
             ))}

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/cart';
 import { cn } from '@/lib/utils';
 import { formatSoldCount, formatRatingCount } from '@/lib/format-number';
+import { toast } from 'sonner';
 
 interface ProductCardProps {
   id: string;
@@ -12,6 +13,7 @@ interface ProductCardProps {
   rating_avg?: number;
   rating_count?: number;
   sold_count?: number;
+  stock?: number;
   onClick?: () => void;
 }
 
@@ -23,18 +25,26 @@ export function ProductCard({
   rating_avg = 4.7, 
   rating_count = 0, 
   sold_count = 0,
+  stock = 0,
   onClick 
 }: ProductCardProps) {
   const { addItem, updateQty, getItemQty } = useCart();
   const qty = getItemQty(id);
+  const isOutOfStock = stock <= 0;
+  const isMaxQty = qty >= stock;
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
     addItem({ product_id: id, name, price, image });
   };
 
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isMaxQty) {
+      toast.error('Stok tidak cukup');
+      return;
+    }
     updateQty(id, qty + 1);
   };
 
@@ -70,7 +80,9 @@ export function ProductCard({
         <p className="text-primary font-semibold text-sm">
           Rp {price.toLocaleString('id-ID')}
         </p>
-        {qty === 0 ? (
+        {isOutOfStock ? (
+          <span className="text-xs text-destructive font-medium">Habis</span>
+        ) : qty === 0 ? (
           <Button
             size="icon"
             variant="default"
@@ -95,6 +107,7 @@ export function ProductCard({
               variant="default"
               className="h-7 w-7 rounded-full bg-primary hover:bg-primary/90"
               onClick={handleIncrement}
+              disabled={isMaxQty}
             >
               <Plus className="h-3 w-3" />
             </Button>

@@ -67,7 +67,14 @@ export default function ProductDetailPage() {
   const handleIncrement = () => {
     if (!product) return;
     const newQty = cartQty + 1;
-    if (product.stock > 0 && newQty > product.stock) return;
+    if (product.stock > 0 && newQty > product.stock) {
+      toast({
+        description: 'Stok tidak cukup',
+        variant: 'destructive',
+        duration: 2000,
+      });
+      return;
+    }
 
     if (isInCart) {
       updateQty(product.id, newQty);

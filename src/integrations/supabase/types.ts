@@ -58,6 +58,7 @@ export type Database = {
           shipping_fee: number
           shipping_method: string
           sold_counted: boolean
+          stock_counted: boolean
           store_id: string
           subtotal: number
           total: number
@@ -76,6 +77,7 @@ export type Database = {
           shipping_fee?: number
           shipping_method?: string
           sold_counted?: boolean
+          stock_counted?: boolean
           store_id: string
           subtotal?: number
           total?: number
@@ -94,6 +96,7 @@ export type Database = {
           shipping_fee?: number
           shipping_method?: string
           sold_counted?: boolean
+          stock_counted?: boolean
           store_id?: string
           subtotal?: number
           total?: number
