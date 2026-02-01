@@ -20,8 +20,25 @@ export function getProductThumb(images: unknown): string {
   }
   
   // If it's a storage path, construct the public URL
-  // Assuming images are stored in a 'products' bucket
-  const { data } = supabase.storage.from('products').getPublicUrl(firstImage);
+  const { data } = supabase.storage.from('product-images').getPublicUrl(firstImage);
+  return data?.publicUrl || '/placeholder.svg';
+}
+
+/**
+ * Get full image URL from storage path
+ */
+export function getProductImageUrl(imagePath?: string): string {
+  if (!imagePath) {
+    return '/placeholder.svg';
+  }
+  
+  // If it's already a full URL, return as-is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a storage path, construct the public URL
+  const { data } = supabase.storage.from('product-images').getPublicUrl(imagePath);
   return data?.publicUrl || '/placeholder.svg';
 }
 
