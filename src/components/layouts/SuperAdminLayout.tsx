@@ -23,7 +23,7 @@ const menuItems = [
   { path: '/superadmin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { path: '/superadmin/stores', icon: Store, label: 'Toko' },
   { path: '/superadmin/users', icon: Users, label: 'Users' },
-  { path: '/superadmin/analytics', icon: BarChart3, label: 'Analytics' },
+  { path: '/superadmin/orders', icon: BarChart3, label: 'Pesanan' },
   { path: '/superadmin/settings', icon: Settings, label: 'Pengaturan' },
 ];
 
