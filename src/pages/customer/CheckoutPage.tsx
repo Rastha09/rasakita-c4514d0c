@@ -42,7 +42,7 @@ export default function CheckoutPage() {
   // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) {
-      navigate('/cart');
+      navigate('/makka-bakerry/cart');
     }
   }, [items, navigate]);
 
@@ -50,7 +50,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!user) {
       toast.error('Silakan login terlebih dahulu');
-      navigate('/login', { state: { from: '/checkout' } });
+      navigate('/login', { state: { from: '/makka-bakerry/checkout' } });
     }
   }, [user, navigate]);
 
@@ -162,7 +162,7 @@ export default function CheckoutPage() {
     onSuccess: (order) => {
       clearCart();
       toast.success('Pesanan berhasil dibuat!');
-      navigate(`/orders/${order.id}`);
+      navigate(`/makka-bakerry/orders/${order.id}`);
     },
     onError: (error) => {
       console.error('Order error:', error);
@@ -240,7 +240,7 @@ export default function CheckoutPage() {
     onSuccess: (order) => {
       clearCart();
       toast.success('Pesanan berhasil dibuat! Silakan lakukan pembayaran.');
-      navigate(`/payment/${order.id}`);
+      navigate(`/makka-bakerry/payment/${order.id}`);
     },
     onError: (error) => {
       console.error('QRIS Order error:', error);

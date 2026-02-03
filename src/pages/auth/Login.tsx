@@ -19,7 +19,7 @@ export default function Login() {
   // Watch for profile to be loaded after login, then redirect
   useEffect(() => {
     if (loginSuccess && user && profile) {
-      let redirectPath = '/';
+      let redirectPath = '/makka-bakerry';
       if (profile.role === 'SUPER_ADMIN') {
         redirectPath = '/superadmin';
       } else if (profile.role === 'ADMIN') {

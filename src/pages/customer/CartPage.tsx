@@ -41,7 +41,7 @@ export default function CartPage() {
           title="Keranjang Kosong"
           description="Yuk, mulai belanja dan temukan produk favoritmu!"
           actionLabel="Belanja Sekarang"
-          actionLink="/"
+          actionLink="/makka-bakerry"
         />
       </CustomerLayout>
     );
@@ -148,7 +148,7 @@ export default function CartPage() {
         </div>
         <Button
           className="w-full h-12 rounded-full text-base font-semibold"
-          onClick={() => navigate('/checkout')}
+          onClick={() => navigate('/makka-bakerry/checkout')}
         >
           Checkout
         </Button>

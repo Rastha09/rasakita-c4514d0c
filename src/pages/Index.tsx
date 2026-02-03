@@ -27,7 +27,7 @@ const Index = () => {
   });
 
   const handleProductClick = (slug: string) => {
-    navigate(`/product/${slug}`);
+    navigate(`/makka-bakerry/product/${slug}`);
   };
 
   return (
@@ -41,7 +41,7 @@ const Index = () => {
           </p>
           {!user && (
             <Button asChild variant="secondary" className="gap-2">
-              <Link to="/login">
+              <Link to="/login" state={{ from: '/makka-bakerry' }}>
                 Masuk <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

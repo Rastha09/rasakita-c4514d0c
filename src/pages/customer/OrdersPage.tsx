@@ -91,7 +91,7 @@ export default function OrdersPage() {
     return (
       <div
         className="bg-card rounded-2xl p-4 shadow-card cursor-pointer transition-transform active:scale-[0.99]"
-        onClick={() => navigate(`/orders/${order.id}`)}
+        onClick={() => navigate(`/makka-bakerry/orders/${order.id}`)}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -173,7 +173,7 @@ export default function OrdersPage() {
                 title="Belum Ada Pesanan"
                 description="Pesanan yang sedang berlangsung akan muncul di sini"
                 actionLabel="Belanja Sekarang"
-                actionLink="/"
+                actionLink="/makka-bakerry"
               />
             ) : (
               ongoingOrders.map((order) => <OrderCard key={order.id} order={order} />)

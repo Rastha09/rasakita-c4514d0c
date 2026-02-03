@@ -145,7 +145,7 @@ export default function OrderDetailPage() {
     },
     onSuccess: () => {
       toast.success('Invoice pembayaran berhasil dibuat');
-      navigate(`/payment/${orderId}`);
+      navigate(`/makka-bakerry/payment/${orderId}`);
     },
     onError: (error) => {
       console.error('Create invoice error:', error);
@@ -158,7 +158,7 @@ export default function OrderDetailPage() {
     // Check if there's an active payment
     if (payment && payment.status === 'PENDING' && payment.expired_at && new Date(payment.expired_at) > new Date()) {
       // Use existing payment
-      navigate(`/payment/${orderId}`);
+      navigate(`/makka-bakerry/payment/${orderId}`);
     } else {
       // Create new invoice
       createInvoiceMutation.mutate();
@@ -183,7 +183,7 @@ export default function OrderDetailPage() {
       <CustomerLayout>
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground mb-4">Pesanan tidak ditemukan</p>
-          <Button onClick={() => navigate('/orders')}>Kembali ke Pesanan</Button>
+          <Button onClick={() => navigate('/makka-bakerry/orders')}>Kembali ke Pesanan</Button>
         </div>
       </CustomerLayout>
     );
@@ -221,7 +221,7 @@ export default function OrderDetailPage() {
             variant="ghost"
             size="icon"
             className="rounded-full"
-            onClick={() => navigate('/orders')}
+            onClick={() => navigate('/makka-bakerry/orders')}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

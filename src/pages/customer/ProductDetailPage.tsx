@@ -255,7 +255,7 @@ export default function ProductDetailPage() {
           ) : isInCart ? (
             <Button
               className="flex-1 h-12 rounded-full text-base font-semibold"
-              onClick={() => navigate('/cart')}
+              onClick={() => navigate('/makka-bakerry/cart')}
             >
               Lihat Keranjang
             </Button>

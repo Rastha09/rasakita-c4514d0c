@@ -49,7 +49,7 @@ export default function AccountPage() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/');
+    navigate('/makka-bakerry');
     toast.success('Berhasil keluar');
   };
 

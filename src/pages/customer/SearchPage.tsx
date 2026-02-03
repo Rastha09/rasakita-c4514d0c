@@ -34,7 +34,7 @@ export default function SearchPage() {
   });
 
   const handleProductClick = (slug: string) => {
-    navigate(`/product/${slug}`);
+    navigate(`/makka-bakerry/product/${slug}`);
   };
 
   return (

@@ -59,7 +59,7 @@ export function RouteGuard({
           return <Navigate to="/admin" replace />;
         case 'CUSTOMER':
         default:
-          return <Navigate to="/" replace />;
+          return <Navigate to="/makka-bakerry" replace />;
       }
     }
   }

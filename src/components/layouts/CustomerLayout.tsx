@@ -9,11 +9,11 @@ interface CustomerLayoutProps {
 }
 
 const navItems = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/search', icon: Search, label: 'Cari' },
-  { path: '/orders', icon: ClipboardList, label: 'Pesanan' },
-  { path: '/cart', icon: ShoppingCart, label: 'Keranjang', hasBadge: true },
-  { path: '/account', icon: User, label: 'Akun' },
+  { path: '/makka-bakerry', icon: Home, label: 'Home' },
+  { path: '/makka-bakerry/search', icon: Search, label: 'Cari' },
+  { path: '/makka-bakerry/orders', icon: ClipboardList, label: 'Pesanan' },
+  { path: '/makka-bakerry/cart', icon: ShoppingCart, label: 'Keranjang', hasBadge: true },
+  { path: '/makka-bakerry/account', icon: User, label: 'Akun' },
 ];
 
 export function CustomerLayout({ children }: CustomerLayoutProps) {
