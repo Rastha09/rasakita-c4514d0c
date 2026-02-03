@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProductsByIds } from '@/lib/product-image';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useStoreContext } from '@/lib/store-context';
 
 interface OrderItem {
   product_id: string;
@@ -46,20 +47,24 @@ const STATUS_COLORS: Record<string, string> = {
 export default function OrdersPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const { store } = useStoreContext();
+  const basePath = `/${storeSlug}`;
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', user?.id],
+    queryKey: ['orders', user?.id, store?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !store?.id) return [];
       const { data, error } = await supabase
         .from('orders')
         .select('*')
         .eq('customer_id', user.id)
+        .eq('store_id', store.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!store?.id,
   });
 
   // Extract all unique product IDs from all orders
@@ -91,7 +96,7 @@ export default function OrdersPage() {
     return (
       <div
         className="bg-card rounded-2xl p-4 shadow-card cursor-pointer transition-transform active:scale-[0.99]"
-        onClick={() => navigate(`/makka-bakerry/orders/${order.id}`)}
+        onClick={() => navigate(`${basePath}/orders/${order.id}`)}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -173,7 +178,7 @@ export default function OrdersPage() {
                 title="Belum Ada Pesanan"
                 description="Pesanan yang sedang berlangsung akan muncul di sini"
                 actionLabel="Belanja Sekarang"
-                actionLink="/makka-bakerry"
+                actionLink={basePath}
               />
             ) : (
               ongoingOrders.map((order) => <OrderCard key={order.id} order={order} />)

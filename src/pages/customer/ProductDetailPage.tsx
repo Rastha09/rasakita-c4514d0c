@@ -10,25 +10,30 @@ import { toast } from '@/hooks/use-toast';
 import { formatSoldCount, formatRatingCount } from '@/lib/format-number';
 import { getProductThumb } from '@/lib/product-image';
 import { ProductReviewSection } from '@/components/customer/ProductReviewSection';
+import { useStoreContext } from '@/lib/store-context';
 
 export default function ProductDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, storeSlug } = useParams<{ slug: string; storeSlug: string }>();
   const navigate = useNavigate();
   const { addItem, updateQty, removeItem, getItemQty } = useCart();
+  const { store } = useStoreContext();
+  const basePath = `/${storeSlug}`;
 
   const { data: product, isLoading, error } = useQuery({
-    queryKey: ['product', slug],
+    queryKey: ['product', slug, store?.id],
     queryFn: async () => {
+      if (!store?.id) return null;
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('slug', slug)
+        .eq('store_id', store.id)
         .eq('is_active', true)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!slug,
+    enabled: !!slug && !!store?.id,
   });
 
   const cartQty = product ? getItemQty(product.id) : 0;
@@ -255,7 +260,7 @@ export default function ProductDetailPage() {
           ) : isInCart ? (
             <Button
               className="flex-1 h-12 rounded-full text-base font-semibold"
-              onClick={() => navigate('/makka-bakerry/cart')}
+              onClick={() => navigate(`${basePath}/cart`)}
             >
               Lihat Keranjang
             </Button>

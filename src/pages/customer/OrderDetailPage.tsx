@@ -54,12 +54,13 @@ interface CustomerAddress {
 }
 
 export default function OrderDetailPage() {
-  const { orderId } = useParams();
+  const { orderId, storeSlug } = useParams<{ orderId: string; storeSlug: string }>();
   const navigate = useNavigate();
   const { user, session } = useAuth();
   const queryClient = useQueryClient();
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string } | null>(null);
+  const basePath = `/${storeSlug}`;
 
   const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['order', orderId],
@@ -145,7 +146,7 @@ export default function OrderDetailPage() {
     },
     onSuccess: () => {
       toast.success('Invoice pembayaran berhasil dibuat');
-      navigate(`/makka-bakerry/payment/${orderId}`);
+      navigate(`${basePath}/payment/${orderId}`);
     },
     onError: (error) => {
       console.error('Create invoice error:', error);
@@ -158,7 +159,7 @@ export default function OrderDetailPage() {
     // Check if there's an active payment
     if (payment && payment.status === 'PENDING' && payment.expired_at && new Date(payment.expired_at) > new Date()) {
       // Use existing payment
-      navigate(`/makka-bakerry/payment/${orderId}`);
+      navigate(`${basePath}/payment/${orderId}`);
     } else {
       // Create new invoice
       createInvoiceMutation.mutate();
@@ -183,7 +184,7 @@ export default function OrderDetailPage() {
       <CustomerLayout>
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground mb-4">Pesanan tidak ditemukan</p>
-          <Button onClick={() => navigate('/makka-bakerry/orders')}>Kembali ke Pesanan</Button>
+          <Button onClick={() => navigate(`${basePath}/orders`)}>Kembali ke Pesanan</Button>
         </div>
       </CustomerLayout>
     );
@@ -221,7 +222,7 @@ export default function OrderDetailPage() {
             variant="ghost"
             size="icon"
             className="rounded-full"
-            onClick={() => navigate('/makka-bakerry/orders')}
+            onClick={() => navigate(`${basePath}/orders`)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

@@ -6,14 +6,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { CartProvider } from "@/lib/cart";
 import { RouteGuard } from "@/components/guards/RouteGuard";
+import { StoreLayout } from "@/components/layouts/StoreLayout";
 
 // Pages
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
-// Customer Pages
+// Customer Pages (Dynamic Store)
+import StorePage from "./pages/customer/StorePage";
 import SearchPage from "./pages/customer/SearchPage";
 import CartPage from "./pages/customer/CartPage";
 import CheckoutPage from "./pages/customer/CheckoutPage";
@@ -56,55 +57,57 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Redirect root to store */}
+              {/* Redirect root to default store */}
               <Route path="/" element={<Navigate to="/makka-bakerry" replace />} />
               
-              {/* Customer routes - Store: makka-bakerry */}
-              <Route path="/makka-bakerry" element={
-                <RouteGuard customerOnly>
-                  <Index />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/search" element={
-                <RouteGuard customerOnly>
-                  <SearchPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/product/:slug" element={
-                <RouteGuard customerOnly>
-                  <ProductDetailPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/cart" element={
-                <RouteGuard customerOnly>
-                  <CartPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/checkout" element={
-                <RouteGuard requireAuth customerOnly>
-                  <CheckoutPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/orders" element={
-                <RouteGuard requireAuth customerOnly>
-                  <OrdersPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/orders/:orderId" element={
-                <RouteGuard requireAuth customerOnly>
-                  <OrderDetailPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/payment/:orderId" element={
-                <RouteGuard requireAuth customerOnly>
-                  <PaymentPage />
-                </RouteGuard>
-              } />
-              <Route path="/makka-bakerry/account" element={
-                <RouteGuard requireAuth>
-                  <AccountPage />
-                </RouteGuard>
-              } />
+              {/* Dynamic Store Routes - validates store exists via StoreLayout */}
+              <Route path="/:storeSlug" element={<StoreLayout />}>
+                <Route index element={
+                  <RouteGuard customerOnly>
+                    <StorePage />
+                  </RouteGuard>
+                } />
+                <Route path="search" element={
+                  <RouteGuard customerOnly>
+                    <SearchPage />
+                  </RouteGuard>
+                } />
+                <Route path="product/:slug" element={
+                  <RouteGuard customerOnly>
+                    <ProductDetailPage />
+                  </RouteGuard>
+                } />
+                <Route path="cart" element={
+                  <RouteGuard customerOnly>
+                    <CartPage />
+                  </RouteGuard>
+                } />
+                <Route path="checkout" element={
+                  <RouteGuard requireAuth customerOnly>
+                    <CheckoutPage />
+                  </RouteGuard>
+                } />
+                <Route path="orders" element={
+                  <RouteGuard requireAuth customerOnly>
+                    <OrdersPage />
+                  </RouteGuard>
+                } />
+                <Route path="orders/:orderId" element={
+                  <RouteGuard requireAuth customerOnly>
+                    <OrderDetailPage />
+                  </RouteGuard>
+                } />
+                <Route path="payment/:orderId" element={
+                  <RouteGuard requireAuth customerOnly>
+                    <PaymentPage />
+                  </RouteGuard>
+                } />
+                <Route path="account" element={
+                  <RouteGuard requireAuth>
+                    <AccountPage />
+                  </RouteGuard>
+                } />
+              </Route>
 
               {/* Admin routes */}
               <Route path="/admin" element={
@@ -180,8 +183,8 @@ const App = () => (
                 </RouteGuard>
               } />
 
-              {/* Fallback - redirect unknown routes to store */}
-              <Route path="*" element={<Navigate to="/makka-bakerry" replace />} />
+              {/* 404 fallback */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

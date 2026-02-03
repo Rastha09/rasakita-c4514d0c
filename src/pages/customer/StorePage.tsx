@@ -2,32 +2,37 @@ import { useQuery } from '@tanstack/react-query';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { ProductCard } from '@/components/customer/ProductCard';
 import { useAuth } from '@/lib/auth';
+import { useStoreContext } from '@/lib/store-context';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getProductThumb } from '@/lib/product-image';
 
-const Index = () => {
+const StorePage = () => {
   const { user, profile } = useAuth();
+  const { store, storeSlug } = useStoreContext();
   const navigate = useNavigate();
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', 'home'],
+    queryKey: ['products', 'home', store?.id],
     queryFn: async () => {
+      if (!store?.id) return [];
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('store_id', store.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
       return data;
     },
+    enabled: !!store?.id,
   });
 
   const handleProductClick = (slug: string) => {
-    navigate(`/makka-bakerry/product/${slug}`);
+    navigate(`/${storeSlug}/product/${slug}`);
   };
 
   return (
@@ -37,11 +42,11 @@ const Index = () => {
         <div className="gradient-primary rounded-2xl p-6 text-primary-foreground mb-6">
           <h1 className="text-2xl font-bold mb-2">Selamat Datang! 👋</h1>
           <p className="text-primary-foreground/90 mb-4">
-            {user ? `Halo, ${profile?.full_name || 'Customer'}!` : 'Temukan produk terbaik di sini'}
+            {user ? `Halo, ${profile?.full_name || 'Customer'}!` : `Temukan produk terbaik di ${store?.name || 'sini'}`}
           </p>
           {!user && (
             <Button asChild variant="secondary" className="gap-2">
-              <Link to="/login" state={{ from: '/makka-bakerry' }}>
+              <Link to="/login" state={{ from: `/${storeSlug}` }}>
                 Masuk <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -82,4 +87,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default StorePage;

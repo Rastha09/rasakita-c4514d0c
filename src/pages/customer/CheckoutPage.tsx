@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { MapPin, Clock, Truck, Store, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProductsByIds } from '@/lib/product-image';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useStoreContext } from '@/lib/store-context';
 
 type ShippingMethod = 'COURIER' | 'PICKUP';
 type PaymentMethod = 'COD' | 'QRIS';
@@ -27,6 +28,9 @@ interface AddressForm {
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const { store } = useStoreContext();
+  const basePath = `/${storeSlug}`;
   const { items, subtotal, clearCart } = useCart();
   const { user, session } = useAuth();
 
@@ -42,30 +46,23 @@ export default function CheckoutPage() {
   // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) {
-      navigate('/makka-bakerry/cart');
+      navigate(`${basePath}/cart`);
     }
-  }, [items, navigate]);
+  }, [items, navigate, basePath]);
 
   // Redirect if not logged in
   useEffect(() => {
     if (!user) {
       toast.error('Silakan login terlebih dahulu');
-      navigate('/login', { state: { from: '/makka-bakerry/checkout' } });
+      navigate('/login', { state: { from: `${basePath}/checkout` } });
     }
-  }, [user, navigate]);
+  }, [user, navigate, basePath]);
 
-  // Fetch store and settings
+  // Fetch store settings using store from context
   const { data: storeData } = useQuery({
-    queryKey: ['store-checkout'],
+    queryKey: ['store-checkout', store?.id],
     queryFn: async () => {
-      const { data: store, error: storeError } = await supabase
-        .from('stores')
-        .select('*')
-        .eq('is_active', true)
-        .limit(1)
-        .single();
-
-      if (storeError) throw storeError;
+      if (!store?.id) return null;
 
       const { data: settings, error: settingsError } = await supabase
         .from('store_settings')
@@ -77,6 +74,7 @@ export default function CheckoutPage() {
 
       return { store, settings };
     },
+    enabled: !!store?.id,
   });
 
   // Batch fetch product data including stock for cart items
@@ -106,7 +104,7 @@ export default function CheckoutPage() {
     enabled: productIds.length > 0,
   });
 
-  const store = storeData?.store;
+  const storeInfo = storeData?.store;
   const settings = storeData?.settings;
 
   const shippingFee = shippingMethod === 'COURIER' ? (settings?.shipping_fee_flat || 10000) : 0;
@@ -115,7 +113,7 @@ export default function CheckoutPage() {
   // COD order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      if (!store || !user) throw new Error('Missing data');
+      if (!storeInfo || !user) throw new Error('Missing data');
 
       const orderItems = items.map((item) => ({
         product_id: item.product_id,
@@ -139,7 +137,7 @@ export default function CheckoutPage() {
       const { data: order, error } = await supabase
         .from('orders')
         .insert({
-          store_id: store.id,
+          store_id: storeInfo.id,
           customer_id: user.id,
           order_code: orderCode,
           items: orderItems,
@@ -162,7 +160,7 @@ export default function CheckoutPage() {
     onSuccess: (order) => {
       clearCart();
       toast.success('Pesanan berhasil dibuat!');
-      navigate(`/makka-bakerry/orders/${order.id}`);
+      navigate(`${basePath}/orders/${order.id}`);
     },
     onError: (error) => {
       console.error('Order error:', error);
@@ -173,7 +171,7 @@ export default function CheckoutPage() {
   // QRIS order mutation - creates order then redirects to payment
   const createQrisOrderMutation = useMutation({
     mutationFn: async () => {
-      if (!store || !user || !session?.access_token) throw new Error('Missing data');
+      if (!storeInfo || !user || !session?.access_token) throw new Error('Missing data');
 
       const orderItems = items.map((item) => ({
         product_id: item.product_id,
@@ -198,7 +196,7 @@ export default function CheckoutPage() {
       const { data: order, error } = await supabase
         .from('orders')
         .insert({
-          store_id: store.id,
+          store_id: storeInfo.id,
           customer_id: user.id,
           order_code: orderCode,
           items: orderItems,
@@ -240,7 +238,7 @@ export default function CheckoutPage() {
     onSuccess: (order) => {
       clearCart();
       toast.success('Pesanan berhasil dibuat! Silakan lakukan pembayaran.');
-      navigate(`/makka-bakerry/payment/${order.id}`);
+      navigate(`${basePath}/payment/${order.id}`);
     },
     onError: (error) => {
       console.error('QRIS Order error:', error);
@@ -277,7 +275,7 @@ export default function CheckoutPage() {
 
   const isLoading = createOrderMutation.isPending || createQrisOrderMutation.isPending;
 
-  if (!store || !settings) {
+  if (!storeInfo || !settings) {
     return (
       <CustomerLayout>
         <div className="flex items-center justify-center py-20">

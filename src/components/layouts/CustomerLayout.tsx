@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Home, Search, ClipboardList, ShoppingCart, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CartBadge } from '@/components/customer/CartBadge';
@@ -8,16 +8,18 @@ interface CustomerLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
-  { path: '/makka-bakerry', icon: Home, label: 'Home' },
-  { path: '/makka-bakerry/search', icon: Search, label: 'Cari' },
-  { path: '/makka-bakerry/orders', icon: ClipboardList, label: 'Pesanan' },
-  { path: '/makka-bakerry/cart', icon: ShoppingCart, label: 'Keranjang', hasBadge: true },
-  { path: '/makka-bakerry/account', icon: User, label: 'Akun' },
-];
-
 export function CustomerLayout({ children }: CustomerLayoutProps) {
   const location = useLocation();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const basePath = `/${storeSlug || 'makka-bakerry'}`;
+
+  const navItems = [
+    { path: basePath, icon: Home, label: 'Home' },
+    { path: `${basePath}/search`, icon: Search, label: 'Cari' },
+    { path: `${basePath}/orders`, icon: ClipboardList, label: 'Pesanan' },
+    { path: `${basePath}/cart`, icon: ShoppingCart, label: 'Keranjang', hasBadge: true },
+    { path: `${basePath}/account`, icon: User, label: 'Akun' },
+  ];
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -31,7 +33,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || 
-              (item.path !== '/' && location.pathname.startsWith(item.path));
+              (item.path !== basePath && location.pathname.startsWith(item.path));
             const Icon = item.icon;
 
             return (

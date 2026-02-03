@@ -7,19 +7,24 @@ import { EmptyState } from '@/components/customer/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getProductThumb } from '@/lib/product-image';
+import { useStoreContext } from '@/lib/store-context';
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const { store } = useStoreContext();
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', 'search', query],
+    queryKey: ['products', 'search', query, store?.id],
     queryFn: async () => {
+      if (!store?.id) return [];
       let q = supabase
         .from('products')
         .select('*')
+        .eq('store_id', store.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -31,10 +36,11 @@ export default function SearchPage() {
       if (error) throw error;
       return data;
     },
+    enabled: !!store?.id,
   });
 
   const handleProductClick = (slug: string) => {
-    navigate(`/makka-bakerry/product/${slug}`);
+    navigate(`/${storeSlug}/product/${slug}`);
   };
 
   return (

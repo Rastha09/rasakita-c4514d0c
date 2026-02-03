@@ -5,13 +5,15 @@ import { EmptyState } from '@/components/customer/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/lib/cart';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export default function CartPage() {
   const { items, updateQty, updateNotes, removeItem, subtotal } = useCart();
   const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const basePath = `/${storeSlug || 'makka-bakerry'}`;
 
   // Fetch current stock for all cart items
   const productIds = items.map((item) => item.product_id);
@@ -41,7 +43,7 @@ export default function CartPage() {
           title="Keranjang Kosong"
           description="Yuk, mulai belanja dan temukan produk favoritmu!"
           actionLabel="Belanja Sekarang"
-          actionLink="/makka-bakerry"
+          actionLink={basePath}
         />
       </CustomerLayout>
     );
@@ -148,7 +150,7 @@ export default function CartPage() {
         </div>
         <Button
           className="w-full h-12 rounded-full text-base font-semibold"
-          onClick={() => navigate('/makka-bakerry/checkout')}
+          onClick={() => navigate(`${basePath}/checkout`)}
         >
           Checkout
         </Button>

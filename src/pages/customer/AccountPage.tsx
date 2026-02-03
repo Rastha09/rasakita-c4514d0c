@@ -7,13 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function AccountPage() {
   const { user, profile, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const basePath = `/${storeSlug || 'makka-bakerry'}`;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -49,7 +51,7 @@ export default function AccountPage() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/makka-bakerry');
+    navigate(basePath);
     toast.success('Berhasil keluar');
   };
 
@@ -100,7 +102,7 @@ export default function AccountPage() {
             Masuk untuk melihat dan mengelola akun Anda
           </p>
           <Button asChild className="rounded-full px-6">
-            <a href="/login">Masuk</a>
+            <Link to="/login" state={{ from: `${basePath}/account` }}>Masuk</Link>
           </Button>
         </div>
       </CustomerLayout>

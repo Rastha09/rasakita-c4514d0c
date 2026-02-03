@@ -18,11 +18,12 @@ const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string; icon
 };
 
 export default function PaymentPage() {
-  const { orderId } = useParams();
+  const { orderId, storeSlug } = useParams<{ orderId: string; storeSlug: string }>();
   const navigate = useNavigate();
   const { user, session } = useAuth();
   const queryClient = useQueryClient();
   const [countdown, setCountdown] = useState<string>('');
+  const basePath = `/${storeSlug}`;
 
   // Fetch order and payment
   const { data, isLoading, refetch } = useQuery({
@@ -148,7 +149,7 @@ export default function PaymentPage() {
       <CustomerLayout>
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground mb-4">Pesanan tidak ditemukan</p>
-          <Button onClick={() => navigate('/makka-bakerry/orders')}>Kembali ke Pesanan</Button>
+          <Button onClick={() => navigate(`${basePath}/orders`)}>Kembali ke Pesanan</Button>
         </div>
       </CustomerLayout>
     );
@@ -162,7 +163,7 @@ export default function PaymentPage() {
           <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h1>
           <p className="text-muted-foreground mb-6">Terima kasih, pesanan Anda sedang diproses</p>
-          <Button onClick={() => navigate(`/makka-bakerry/orders/${orderId}`)}>Lihat Detail Pesanan</Button>
+          <Button onClick={() => navigate(`${basePath}/orders/${orderId}`)}>Lihat Detail Pesanan</Button>
         </div>
       </CustomerLayout>
     );
@@ -185,7 +186,7 @@ export default function PaymentPage() {
             variant="ghost"
             size="icon"
             className="rounded-full"
-            onClick={() => navigate(`/makka-bakerry/orders/${orderId}`)}
+            onClick={() => navigate(`${basePath}/orders/${orderId}`)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -301,7 +302,7 @@ export default function PaymentPage() {
           <Button
             variant="ghost"
             className="w-full"
-            onClick={() => navigate(`/makka-bakerry/orders/${orderId}`)}
+            onClick={() => navigate(`${basePath}/orders/${orderId}`)}
           >
             Lihat Detail Pesanan
           </Button>
