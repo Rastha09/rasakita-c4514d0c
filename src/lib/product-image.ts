@@ -4,7 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
  * Get thumbnail URL from product images array
  * Returns first image URL or placeholder if empty
  */
-export function getProductThumb(images: unknown): string {
+export function getProductThumb(productOrImages: unknown): string {
+  // Handle if passed a product object with images property
+  let images: unknown = productOrImages;
+  if (productOrImages && typeof productOrImages === 'object' && 'images' in productOrImages) {
+    images = (productOrImages as { images: unknown }).images;
+  }
+  
   if (!images || !Array.isArray(images) || images.length === 0) {
     return '/placeholder.svg';
   }
