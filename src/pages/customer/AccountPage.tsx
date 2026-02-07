@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Phone, Mail, LogOut, Loader2, Edit2, Check, X, ShieldCheck, Store } from 'lucide-react';
+import { User, Phone, Mail, LogOut, Loader2, Edit2, Check, X, ShieldCheck, Store, Key } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AddressSection } from '@/components/account/AddressSection';
+import { ChangePasswordModal } from '@/components/account/ChangePasswordModal';
+import { HelpSection } from '@/components/account/HelpSection';
 
 export default function AccountPage() {
   const { user, profile, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { storeSlug } = useParams<{ storeSlug: string }>();
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const basePath = `/${storeSlug || 'makka-bakerry'}`;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -227,6 +231,27 @@ export default function AccountPage() {
           )}
         </div>
 
+        {/* Address Section */}
+        <AddressSection />
+
+        {/* Security Section */}
+        <div className="bg-card rounded-2xl p-4 shadow-card">
+          <div className="flex items-center gap-2 mb-3">
+            <Key className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Keamanan</h3>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full rounded-full"
+            onClick={() => setShowChangePassword(true)}
+          >
+            Ganti Password
+          </Button>
+        </div>
+
+        {/* Help Section */}
+        <HelpSection />
+
         {/* Logout Button */}
         <Button
           variant="outline"
@@ -237,6 +262,11 @@ export default function AccountPage() {
           Keluar
         </Button>
       </div>
+
+      <ChangePasswordModal 
+        open={showChangePassword} 
+        onOpenChange={setShowChangePassword} 
+      />
     </ContentWrapper>
   );
 }
