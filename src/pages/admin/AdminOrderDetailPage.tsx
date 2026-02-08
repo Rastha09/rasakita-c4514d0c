@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Truck, Store, CreditCard, Banknote, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, Truck, Store, CreditCard, Banknote, Package, CheckCircle } from 'lucide-react';
 import { useAdminOrderDetail, useUpdateOrderStatus, type OrderStatus } from '@/hooks/useAdminOrders';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
+import { fetchProductsByIds, getProductThumb, type ProductWithImages } from '@/lib/product-image';
 
 const statusConfig: Record<OrderStatus, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   NEW: { label: 'Baru', variant: 'outline' },
@@ -36,6 +37,17 @@ export default function AdminOrderDetailPage() {
     open: false,
     nextStatus: null,
   });
+  const [productImages, setProductImages] = useState<Map<string, ProductWithImages>>(new Map());
+
+  // Fetch product images for order items
+  useEffect(() => {
+    if (order?.items) {
+      const productIds = order.items.map(item => item.product_id).filter(Boolean);
+      if (productIds.length > 0) {
+        fetchProductsByIds(productIds).then(setProductImages);
+      }
+    }
+  }, [order?.items]);
 
   const handleStatusChange = (nextStatus: OrderStatus) => {
     setConfirmDialog({ open: true, nextStatus });
@@ -43,14 +55,25 @@ export default function AdminOrderDetailPage() {
 
   const confirmStatusChange = () => {
     if (order && confirmDialog.nextStatus) {
+      // If COD order being moved to PROCESSING, also update payment status
+      const shouldUpdatePayment = order.order_status === 'NEW' && 
+                                   order.payment_method === 'COD' && 
+                                   confirmDialog.nextStatus === 'PROCESSING';
+      
       updateStatus.mutate(
-        { orderId: order.id, newStatus: confirmDialog.nextStatus },
+        { 
+          orderId: order.id, 
+          newStatus: confirmDialog.nextStatus,
+          updatePayment: shouldUpdatePayment
+        },
         { onSuccess: () => setConfirmDialog({ open: false, nextStatus: null }) }
       );
     }
   };
 
-  const canProcess = order?.order_status === 'PAID';
+  // NEW orders need to be marked as PAID (confirmed) first, or go directly to PROCESSING if COD
+  const canConfirmPayment = order?.order_status === 'NEW' && order?.payment_method === 'COD';
+  const canProcess = order?.order_status === 'PAID' || (order?.order_status === 'NEW' && order?.payment_status === 'PAID');
   const canComplete = order?.order_status === 'PROCESSING';
   
   // Block processing if QRIS payment not yet paid
@@ -139,22 +162,32 @@ export default function AdminOrderDetailPage() {
             <CardTitle className="text-base">Daftar Item</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 space-y-3">
-            {order.items.map((item, idx) => (
-              <div key={idx} className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.qty} x {formatCurrency(item.price)}
-                  </p>
-                  {item.notes && (
-                    <p className="text-sm text-muted-foreground italic mt-1">
-                      Catatan: {item.notes}
+            {order.items.map((item, idx) => {
+              const product = productImages.get(item.product_id);
+              const thumbUrl = getProductThumb(product);
+              
+              return (
+                <div key={idx} className="flex items-start gap-3">
+                  <img 
+                    src={thumbUrl} 
+                    alt={item.name}
+                    className="w-12 h-12 rounded-lg object-cover bg-muted flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.qty} x {formatCurrency(item.price)}
                     </p>
-                  )}
+                    {item.notes && (
+                      <p className="text-sm text-muted-foreground italic mt-1">
+                        Catatan: {item.notes}
+                      </p>
+                    )}
+                  </div>
+                  <p className="font-medium flex-shrink-0">{formatCurrency(item.qty * item.price)}</p>
                 </div>
-                <p className="font-medium">{formatCurrency(item.qty * item.price)}</p>
-              </div>
-            ))}
+              );
+            })}
             <Separator />
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
@@ -185,29 +218,48 @@ export default function AdminOrderDetailPage() {
 
         {/* Actions */}
         <div className="space-y-2">
-          {canProcess && (
-            <>
-              {isQrisUnpaid ? (
-                <Button disabled className="w-full" size="lg">
-                  Menunggu Pembayaran QRIS
-                </Button>
+          {/* For COD orders that are NEW - confirm payment and process */}
+          {canConfirmPayment && (
+            <Button 
+              onClick={() => handleStatusChange('PROCESSING')} 
+              className="w-full" 
+              size="lg"
+              disabled={updateStatus.isPending}
+            >
+              {updateStatus.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <Button 
-                  onClick={() => handleStatusChange('PROCESSING')} 
-                  className="w-full" 
-                  size="lg"
-                  disabled={updateStatus.isPending}
-                >
-                  {updateStatus.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Package className="h-4 w-4 mr-2" />
-                  )}
-                  Proses Pesanan
-                </Button>
+                <CheckCircle className="h-4 w-4 mr-2" />
               )}
-            </>
+              Konfirmasi & Proses Pesanan
+            </Button>
           )}
+          
+          {/* For QRIS orders that are NEW but unpaid */}
+          {order?.order_status === 'NEW' && isQrisUnpaid && (
+            <Button disabled className="w-full" size="lg">
+              Menunggu Pembayaran QRIS
+            </Button>
+          )}
+          
+          {/* For PAID orders - can process */}
+          {order?.order_status === 'PAID' && (
+            <Button 
+              onClick={() => handleStatusChange('PROCESSING')} 
+              className="w-full" 
+              size="lg"
+              disabled={updateStatus.isPending}
+            >
+              {updateStatus.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Package className="h-4 w-4 mr-2" />
+              )}
+              Proses Pesanan
+            </Button>
+          )}
+          
+          {/* For PROCESSING orders - can complete */}
           {canComplete && (
             <Button 
               onClick={() => handleStatusChange('COMPLETED')} 
@@ -215,7 +267,11 @@ export default function AdminOrderDetailPage() {
               size="lg"
               disabled={updateStatus.isPending}
             >
-              {updateStatus.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {updateStatus.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Truck className="h-4 w-4 mr-2" />
+              )}
               Selesaikan Pesanan
             </Button>
           )}

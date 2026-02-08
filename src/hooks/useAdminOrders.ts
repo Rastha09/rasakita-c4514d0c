@@ -100,10 +100,19 @@ export function useUpdateOrderStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: OrderStatus }) => {
+    mutationFn: async ({ orderId, newStatus, updatePayment }: { orderId: string; newStatus: OrderStatus; updatePayment?: boolean }) => {
+      const updateData: { order_status: OrderStatus; payment_status?: string } = { 
+        order_status: newStatus 
+      };
+      
+      // If updating to PROCESSING and this is a COD order, also mark as PAID
+      if (updatePayment) {
+        updateData.payment_status = 'PAID';
+      }
+      
       const { error } = await supabase
         .from('orders')
-        .update({ order_status: newStatus })
+        .update(updateData)
         .eq('id', orderId);
 
       if (error) throw error;
@@ -151,8 +160,8 @@ export function useAdminDashboardStats() {
 
       const allOrders = orders || [];
 
-      // Calculate stats
-      const newOrders = allOrders.filter(o => o.order_status === 'PAID').length;
+      // Calculate stats - NEW and PAID both count as new orders
+      const newOrders = allOrders.filter(o => o.order_status === 'NEW' || o.order_status === 'PAID').length;
       const processing = allOrders.filter(o => o.order_status === 'PROCESSING').length;
       
       const completedToday = allOrders.filter(o => 
