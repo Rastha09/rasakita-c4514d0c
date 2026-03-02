@@ -1,38 +1,26 @@
 import { useState } from 'react';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
-import { useSuperAdmin, Profile, Store } from '@/hooks/useSuperAdmin';
+import { useSuperAdmin, Profile } from '@/hooks/useSuperAdmin';
+import { useStore } from '@/hooks/useStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Users, Pencil, Loader2, ShieldCheck, Store as StoreIcon, User, Plus, Trash2 } from 'lucide-react';
 import { formatDateTime } from '@/lib/format-currency';
 
 const roleLabels: Record<Profile['role'], string> = {
   SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin Toko',
+  ADMIN: 'Admin',
   CUSTOMER: 'Customer',
 };
 
@@ -44,26 +32,17 @@ const roleBadgeVariants: Record<Profile['role'], 'default' | 'secondary' | 'outl
 
 export default function SuperAdminUsersPage() {
   const { 
-    users, 
-    usersLoading, 
-    stores, 
-    storeAdmins, 
-    updateUserRole, 
-    assignStoreAdmin, 
-    removeStoreAdmin 
+    users, usersLoading, storeAdmins, updateUserRole, assignStoreAdmin, removeStoreAdmin 
   } = useSuperAdmin();
+  const { data: store } = useStore();
   
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [selectedRole, setSelectedRole] = useState<Profile['role']>('CUSTOMER');
-  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
-  // Find store admin entry for a user
-  const getStoreAdminEntry = (userId: string) => {
-    return storeAdmins.find(sa => sa.user_id === userId);
-  };
+  const getStoreAdminEntry = (userId: string) => storeAdmins.find(sa => sa.user_id === userId);
 
   const handleOpenRoleEdit = (user: Profile) => {
     setEditingUser(user);
@@ -73,29 +52,18 @@ export default function SuperAdminUsersPage() {
 
   const handleOpenAssign = () => {
     setSelectedUserId('');
-    setSelectedStoreId('');
     setIsAssignDialogOpen(true);
   };
 
   const handleSubmitRole = async () => {
     if (!editingUser) return;
-
-    await updateUserRole.mutateAsync({
-      id: editingUser.id,
-      role: selectedRole,
-    });
-    
+    await updateUserRole.mutateAsync({ id: editingUser.id, role: selectedRole });
     setIsRoleDialogOpen(false);
   };
 
   const handleAssignAdmin = async () => {
-    if (!selectedUserId || !selectedStoreId) return;
-
-    await assignStoreAdmin.mutateAsync({
-      user_id: selectedUserId,
-      store_id: selectedStoreId,
-    });
-    
+    if (!selectedUserId || !store?.id) return;
+    await assignStoreAdmin.mutateAsync({ user_id: selectedUserId, store_id: store.id });
     setIsAssignDialogOpen(false);
   };
 
@@ -111,28 +79,26 @@ export default function SuperAdminUsersPage() {
     }
   };
 
-  // Get users who are not yet store admins (for assignment dropdown)
+  // Users who are not yet admins and not super admins
   const availableUsers = users.filter(u => {
-    const hasStoreAdmin = storeAdmins.some(sa => sa.user_id === u.id);
-    return u.role !== 'SUPER_ADMIN' && !hasStoreAdmin;
+    const isAdmin = storeAdmins.some(sa => sa.user_id === u.id);
+    return u.role !== 'SUPER_ADMIN' && !isAdmin;
   });
 
   return (
     <SuperAdminLayout>
       <div className="space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Kelola Users</h1>
-            <p className="text-sm text-muted-foreground">Daftar semua pengguna di platform</p>
+            <p className="text-sm text-muted-foreground">Daftar semua pengguna</p>
           </div>
           <Button onClick={handleOpenAssign} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            Assign Admin
+            Tambah Admin
           </Button>
         </div>
 
-        {/* Users Table */}
         {usersLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -153,7 +119,6 @@ export default function SuperAdminUsersPage() {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Toko (Admin)</TableHead>
                   <TableHead className="hidden md:table-cell">Bergabung</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
@@ -162,7 +127,7 @@ export default function SuperAdminUsersPage() {
                 {users.map((user) => {
                   const RoleIcon = getRoleIcon(user.role);
                   const storeAdminEntry = getStoreAdminEntry(user.id);
-                  const isStoreAdmin = !!storeAdminEntry;
+                  const isAdmin = !!storeAdminEntry;
                   
                   return (
                     <TableRow key={user.id}>
@@ -183,37 +148,28 @@ export default function SuperAdminUsersPage() {
                             <RoleIcon className="h-3 w-3" />
                             {roleLabels[user.role]}
                           </Badge>
-                          {isStoreAdmin && (
+                          {isAdmin && (
                             <Badge variant="secondary" className="gap-1 w-fit">
                               <StoreIcon className="h-3 w-3" />
-                              Store Admin
+                              Admin
                             </Badge>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {storeAdminEntry?.store?.name || '-'}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground">
                         {formatDateTime(user.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleOpenRoleEdit(user)}
-                            title="Edit Role"
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenRoleEdit(user)} title="Edit Role">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {isStoreAdmin && storeAdminEntry && (
+                          {isAdmin && storeAdminEntry && (
                             <Button 
-                              variant="ghost" 
-                              size="icon"
+                              variant="ghost" size="icon"
                               className="text-destructive hover:text-destructive"
                               onClick={() => handleRemoveAdmin(user.id, storeAdminEntry.store_id)}
-                              title="Hapus dari toko"
+                              title="Hapus admin"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -240,31 +196,23 @@ export default function SuperAdminUsersPage() {
               <p className="font-medium">{editingUser?.full_name || 'Unnamed'}</p>
               <p className="text-sm text-muted-foreground">{editingUser?.phone || '-'}</p>
             </div>
-
             <div className="space-y-2">
-              <Label>Role Global</Label>
+              <Label>Role</Label>
               <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as Profile['role'])}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CUSTOMER">Customer</SelectItem>
                   <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Untuk menjadikan Admin Toko, gunakan tombol "Assign Admin"
+                Untuk menjadikan Admin, gunakan tombol "Tambah Admin"
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button 
-              onClick={handleSubmitRole} 
-              disabled={updateUserRole.isPending}
-            >
+            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>Batal</Button>
+            <Button onClick={handleSubmitRole} disabled={updateUserRole.isPending}>
               {updateUserRole.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Simpan
             </Button>
@@ -276,15 +224,13 @@ export default function SuperAdminUsersPage() {
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Admin ke Toko</DialogTitle>
+            <DialogTitle>Tambah Admin</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Pilih User</Label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih user" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Pilih user" /></SelectTrigger>
                 <SelectContent>
                   {availableUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
@@ -294,33 +240,12 @@ export default function SuperAdminUsersPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label>Pilih Toko</Label>
-              <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih toko" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button 
-              onClick={handleAssignAdmin} 
-              disabled={assignStoreAdmin.isPending || !selectedUserId || !selectedStoreId}
-            >
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>Batal</Button>
+            <Button onClick={handleAssignAdmin} disabled={assignStoreAdmin.isPending || !selectedUserId}>
               {assignStoreAdmin.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Assign
+              Tambah
             </Button>
           </DialogFooter>
         </DialogContent>
