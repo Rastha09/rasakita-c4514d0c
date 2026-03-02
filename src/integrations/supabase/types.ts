@@ -331,7 +331,6 @@ export type Database = {
           id: string
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
-          store_id: string | null
         }
         Insert: {
           created_at?: string
@@ -339,7 +338,6 @@ export type Database = {
           id: string
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
-          store_id?: string | null
         }
         Update: {
           created_at?: string
@@ -347,17 +345,8 @@ export type Database = {
           id?: string
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
-          store_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_profiles_store"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       store_admins: {
         Row: {
