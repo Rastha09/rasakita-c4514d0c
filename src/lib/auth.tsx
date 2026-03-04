@@ -7,7 +7,6 @@ type AppRole = 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
 interface Profile {
   id: string;
   role: AppRole;
-  store_id: string | null;
   full_name: string | null;
   phone: string | null;
 }

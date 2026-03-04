@@ -27,8 +27,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
         {children}
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer removed - now rendered conditionally in StorePage */}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-nav border-t border-border z-50 safe-bottom">

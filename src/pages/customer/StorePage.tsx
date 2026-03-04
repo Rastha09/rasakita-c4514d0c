@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { ProductCard } from '@/components/customer/ProductCard';
 import { CategoryFilter } from '@/components/customer/CategoryFilter';
+import { Footer } from '@/components/customer/Footer';
 import { useAuth } from '@/lib/auth';
 import { useStoreContext } from '@/lib/store-context';
 import { useCategories } from '@/hooks/useCategories';
@@ -155,6 +156,7 @@ const StorePage = () => {
           </div>
         )}
       </div>
+      {!user && <Footer />}
     </CustomerLayout>
   );
 };
