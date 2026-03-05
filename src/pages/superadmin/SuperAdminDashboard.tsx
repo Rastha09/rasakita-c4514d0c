@@ -1,7 +1,7 @@
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, ShoppingBag, TrendingUp, Clock, Package, Store, Star, Loader2 } from 'lucide-react';
+import { Users, ShoppingBag, TrendingUp, Clock, Package, Store, Loader2 } from 'lucide-react';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useAuth } from '@/lib/auth';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
@@ -78,18 +78,12 @@ export default function SuperAdminDashboard() {
   });
 
   const statCards = [
+    { label: 'Total Toko Aktif', value: extraStats?.activeStores || 0, icon: Store, color: 'bg-primary' },
     { label: 'Total User', value: stats?.totalUsers || 0, icon: Users, color: 'bg-blue-500' },
     { label: 'Order Baru', value: stats?.newOrders || 0, icon: ShoppingBag, color: 'bg-primary' },
     { label: 'Diproses', value: stats?.processing || 0, icon: Clock, color: 'bg-amber-500' },
     { label: 'Total Pesanan', value: stats?.totalOrders || 0, icon: Package, color: 'bg-emerald-500' },
-    { label: 'GMV', value: formatCurrency(stats?.totalGMV || 0), icon: TrendingUp, color: 'bg-green-500', isText: true },
-  ];
-
-  const platformCards = [
-    { label: 'Total Toko Aktif', value: extraStats?.activeStores || 0, icon: Store, color: 'bg-primary' },
-    { label: 'Total User', value: stats?.totalUsers || 0, icon: Users, color: 'bg-blue-500' },
-    { label: 'GMV Bulan Ini', value: formatCurrency(monthGMV), icon: TrendingUp, color: 'bg-emerald-500', isText: true },
-    { label: 'Rating Rata-rata', value: extraStats?.avgRating || '0', icon: Star, color: 'bg-amber-500', isText: true },
+    { label: 'GMV Bulan Ini', value: formatCurrency(monthGMV), icon: TrendingUp, color: 'bg-green-500', isText: true },
   ];
 
   return (
@@ -125,26 +119,6 @@ export default function SuperAdminDashboard() {
             ))}
           </div>
         )}
-
-        {/* Platform Summary */}
-        <div>
-          <h2 className="text-lg font-bold mb-3">Ringkasan Platform</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {platformCards.map(s => (
-              <Card key={s.label}>
-                <CardHeader className="pb-2">
-                  <div className={`h-10 w-10 ${s.color} rounded-lg flex items-center justify-center`}>
-                    <s.icon className="h-5 w-5 text-white" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold">{s.isText ? s.value : (s.value as number).toLocaleString('id-ID')}</p>
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
 
         {/* Recent Activity */}
         <div>
