@@ -1,11 +1,12 @@
 import { AdminLayout } from '@/components/layouts/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Package, ShoppingBag, Clock, TrendingUp, ArrowRight, Loader2, AlertTriangle, Check, X, Store, Truck } from 'lucide-react';
+import { Package, ShoppingBag, Clock, TrendingUp, ArrowRight, AlertTriangle, Check, X, Store, Truck } from 'lucide-react';
 import { useAdminDashboardStats, useAdminOrders, useUpdateOrderStatus } from '@/hooks/useAdminOrders';
 import { useAdminProducts } from '@/hooks/useAdminProducts';
+import { useAuth } from '@/lib/auth';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
 import { Link } from 'react-router-dom';
 
@@ -14,6 +15,7 @@ export default function AdminDashboard() {
   const { data: recentOrders, isLoading: ordersLoading } = useAdminOrders();
   const { data: products } = useAdminProducts();
   const updateStatus = useUpdateOrderStatus();
+  const { profile } = useAuth();
 
   const outOfStockProducts = products?.filter(p => p.stock === 0 && p.is_active) || [];
 
@@ -40,8 +42,10 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+        {/* Welcome Banner */}
+        <div className="gradient-primary rounded-2xl p-5 text-primary-foreground">
+          <h1 className="text-xl font-bold">Selamat Datang, {profile?.full_name || 'Admin'}! 👋</h1>
+          <p className="text-sm opacity-90 mt-1">Admin Panel • Kelola toko Anda</p>
         </div>
         
         {isLoading ? (

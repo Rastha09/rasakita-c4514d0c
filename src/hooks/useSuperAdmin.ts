@@ -35,7 +35,7 @@ export function useSuperAdmin() {
       const allOrders = ordersRes.data || [];
       const paidOrders = allOrders.filter(o => o.payment_status === 'PAID');
       const totalGMV = paidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-      const newOrders = allOrders.filter(o => o.order_status === 'NEW' || o.order_status === 'PAID').length;
+      const newOrders = allOrders.filter(o => o.order_status === 'NEW' || o.order_status === 'CONFIRMED').length;
       const processing = allOrders.filter(o => o.order_status === 'PROCESSING').length;
 
       return {

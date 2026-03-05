@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
-import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,8 +9,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { ShoppingBag, Loader2, Search } from 'lucide-react';
+import { ShoppingBag, Loader2, Search, Store } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const orderStatusLabels: Record<string, string> = {
   NEW: 'Baru', CONFIRMED: 'Dikonfirmasi', PROCESSING: 'Diproses', OUT_FOR_DELIVERY: 'Dikirim', READY_FOR_PICKUP: 'Siap Diambil', COMPLETED: 'Selesai', CANCELED: 'Dibatalkan',
@@ -24,14 +25,43 @@ const orderStatusVariants: Record<string, 'default' | 'secondary' | 'outline' | 
 };
 
 export default function SuperAdminOrdersPage() {
-  const { orders, ordersLoading } = useSuperAdmin();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+
+  // Fetch orders with store name
+  const { data: ordersData, isLoading: ordersLoading } = useQuery({
+    queryKey: ['sa-orders-with-store'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, stores(name)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []).map(o => ({
+        ...o,
+        storeName: (o.stores as any)?.name || '-',
+      }));
+    },
+  });
+
+  // Get unique stores for filter
+  const { data: stores } = useQuery({
+    queryKey: ['sa-stores-list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('stores').select('id, name').order('name');
+      return data || [];
+    },
+  });
+
+  const orders = ordersData || [];
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = order.order_code.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.order_status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesStore = storeFilter === 'all' || order.store_id === storeFilter;
+    return matchesSearch && matchesStatus && matchesStore;
   });
 
   return (
@@ -39,7 +69,7 @@ export default function SuperAdminOrdersPage() {
       <div className="space-y-4">
         <div>
           <h1 className="text-xl font-bold">Semua Pesanan</h1>
-          <p className="text-sm text-muted-foreground">Overview semua pesanan Makka Bakery</p>
+          <p className="text-sm text-muted-foreground">Overview pesanan seluruh toko</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -54,11 +84,22 @@ export default function SuperAdminOrdersPage() {
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
               <SelectItem value="NEW">Baru</SelectItem>
-              <SelectItem value="PAID">Dibayar</SelectItem>
               <SelectItem value="CONFIRMED">Dikonfirmasi</SelectItem>
               <SelectItem value="PROCESSING">Diproses</SelectItem>
+              <SelectItem value="OUT_FOR_DELIVERY">Dikirim</SelectItem>
               <SelectItem value="COMPLETED">Selesai</SelectItem>
               <SelectItem value="CANCELED">Dibatalkan</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={storeFilter} onValueChange={setStoreFilter}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Semua Toko" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Toko</SelectItem>
+              {stores?.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -95,6 +136,9 @@ export default function SuperAdminOrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell>
                       <p className="font-mono font-medium">{order.order_code}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Store className="h-3 w-3" /> {order.storeName}
+                      </p>
                     </TableCell>
                     <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                     <TableCell>
