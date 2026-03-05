@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, ShoppingBag, Truck, Store, ChevronDown, ChevronUp, Check, X, Package, MapPin } from 'lucide-react';
+import { ShoppingBag, Truck, Store, ChevronDown, ChevronUp, Check, X, Package, MapPin, CheckCircle } from 'lucide-react';
 import { useAdminOrders, useUpdateOrderStatus, useAdminDashboardStats, type OrderStatus, type Order } from '@/hooks/useAdminOrders';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   NEW: { label: 'Baru', variant: 'outline' },
@@ -29,11 +30,19 @@ function OrderCard({ order }: { order: Order }) {
     const shouldUpdatePayment = order.order_status === 'NEW' && order.payment_method === 'COD';
     updateStatus.mutate({ orderId: order.id, newStatus: 'PROCESSING', updatePayment: shouldUpdatePayment });
   };
-  const handleShipped = () => updateStatus.mutate({ orderId: order.id, newStatus: 'COMPLETED' });
+  const handleShipped = () => {
+    if (order.shipping_method === 'PICKUP') {
+      updateStatus.mutate({ orderId: order.id, newStatus: 'READY_FOR_PICKUP' });
+    } else {
+      updateStatus.mutate({ orderId: order.id, newStatus: 'OUT_FOR_DELIVERY' });
+    }
+  };
+  const handleComplete = () => updateStatus.mutate({ orderId: order.id, newStatus: 'COMPLETED' });
   const handleReject = () => updateStatus.mutate({ orderId: order.id, newStatus: 'CANCELED' });
 
   const isNew = order.order_status === 'NEW' || order.order_status === 'CONFIRMED';
   const isProcessing = order.order_status === 'PROCESSING';
+  const isDelivering = order.order_status === 'OUT_FOR_DELIVERY' || order.order_status === 'READY_FOR_PICKUP';
 
   return (
     <Card className="overflow-hidden">
@@ -73,9 +82,9 @@ function OrderCard({ order }: { order: Order }) {
               <div className="flex items-start gap-2 text-sm">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">{address.recipient_name || 'Pelanggan'}</p>
+                  <p className="font-medium">{address.recipient_name || address.name || 'Pelanggan'}</p>
                   {address.phone && <p className="text-muted-foreground">{address.phone}</p>}
-                  {address.address && <p className="text-muted-foreground">{address.address}</p>}
+                  {(address.address || address.address_line) && <p className="text-muted-foreground">{address.address || address.address_line}</p>}
                 </div>
               </div>
             )}
@@ -89,11 +98,25 @@ function OrderCard({ order }: { order: Order }) {
                   <span>{formatCurrency(item.qty * item.price)}</span>
                 </div>
               ))}
+              {order.shipping_fee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Ongkir</span>
+                  <span>{formatCurrency(order.shipping_fee)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold text-sm pt-1 border-t border-border">
                 <span>Total</span>
                 <span className="text-primary">{formatCurrency(order.total)}</span>
               </div>
             </div>
+
+            {/* Notes */}
+            {order.notes && (
+              <div className="text-sm">
+                <p className="font-medium">Catatan:</p>
+                <p className="text-muted-foreground italic">{order.notes}</p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2 pt-1">
@@ -109,10 +132,16 @@ function OrderCard({ order }: { order: Order }) {
               )}
               {isProcessing && (
                 <Button className="w-full" onClick={handleShipped} disabled={updateStatus.isPending}>
-                  <Truck className="h-4 w-4 mr-2" /> Tandai Selesai
+                  <Truck className="h-4 w-4 mr-2" /> 
+                  {order.shipping_method === 'PICKUP' ? 'Tandai Siap Diambil' : 'Tandai Dikirim'}
                 </Button>
               )}
-              {!isNew && !isProcessing && (
+              {isDelivering && (
+                <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleComplete} disabled={updateStatus.isPending}>
+                  <CheckCircle className="h-4 w-4 mr-2" /> Konfirmasi Selesai
+                </Button>
+              )}
+              {!isNew && !isProcessing && !isDelivering && (
                 <Button variant="outline" className="w-full" asChild>
                   <Link to={`/admin/orders/${order.id}`}>Lihat Detail</Link>
                 </Button>
@@ -152,13 +181,17 @@ export default function AdminOrdersPage() {
         <h1 className="text-2xl font-bold">Kelola Pesanan</h1>
 
         <Tabs value={statusFilter} onValueChange={handleTabChange}>
-          <TabsList className="w-full grid grid-cols-5">
-            <TabsTrigger value="ALL">Semua</TabsTrigger>
-            <TabsTrigger value="NEW">Baru{newCount > 0 ? ` (${newCount})` : ''}</TabsTrigger>
-            <TabsTrigger value="PROCESSING">Proses</TabsTrigger>
-            <TabsTrigger value="COMPLETED">Selesai</TabsTrigger>
-            <TabsTrigger value="CANCELED">Batal</TabsTrigger>
-          </TabsList>
+          <ScrollArea className="w-full">
+            <TabsList className="w-max flex">
+              <TabsTrigger value="ALL">Semua</TabsTrigger>
+              <TabsTrigger value="NEW">Baru{newCount > 0 ? ` (${newCount})` : ''}</TabsTrigger>
+              <TabsTrigger value="PROCESSING">Diproses</TabsTrigger>
+              <TabsTrigger value="OUT_FOR_DELIVERY">Dikirim</TabsTrigger>
+              <TabsTrigger value="COMPLETED">Selesai</TabsTrigger>
+              <TabsTrigger value="CANCELED">Dibatalkan</TabsTrigger>
+            </TabsList>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </Tabs>
 
         {isLoading ? (

@@ -5,6 +5,7 @@ import { useStore } from '@/hooks/useStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -15,7 +16,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Users, Pencil, Loader2, ShieldCheck, Store as StoreIcon, User, Plus, Trash2 } from 'lucide-react';
+import { Users, Pencil, Loader2, ShieldCheck, Store as StoreIcon, User, Plus, Trash2, Search } from 'lucide-react';
 import { formatDateTime } from '@/lib/format-currency';
 
 const roleLabels: Record<Profile['role'], string> = {
@@ -41,8 +42,17 @@ export default function SuperAdminUsersPage() {
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [selectedRole, setSelectedRole] = useState<Profile['role']>('CUSTOMER');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
 
   const getStoreAdminEntry = (userId: string) => storeAdmins.find(sa => sa.user_id === userId);
+
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (u.phone || '').includes(searchQuery);
+    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
 
   const handleOpenRoleEdit = (user: Profile) => {
     setEditingUser(user);
@@ -79,7 +89,6 @@ export default function SuperAdminUsersPage() {
     }
   };
 
-  // Users who are not yet admins and not super admins
   const availableUsers = users.filter(u => {
     const isAdmin = storeAdmins.some(sa => sa.user_id === u.id);
     return u.role !== 'SUPER_ADMIN' && !isAdmin;
@@ -91,7 +100,7 @@ export default function SuperAdminUsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Kelola Users</h1>
-            <p className="text-sm text-muted-foreground">Daftar semua pengguna</p>
+            <p className="text-sm text-muted-foreground">{users.length} pengguna terdaftar</p>
           </div>
           <Button onClick={handleOpenAssign} size="sm">
             <Plus className="h-4 w-4 mr-1" />
@@ -99,17 +108,38 @@ export default function SuperAdminUsersPage() {
           </Button>
         </div>
 
+        {/* Search & Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Cari nama atau telepon..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+          </div>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Semua Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Role</SelectItem>
+              <SelectItem value="CUSTOMER">Customer</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {usersLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
                 <Users className="h-6 w-6 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground">Belum ada pengguna</p>
+              <p className="text-muted-foreground">
+                {users.length === 0 ? 'Belum ada pengguna' : 'Tidak ada user yang cocok'}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -124,7 +154,7 @@ export default function SuperAdminUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => {
+                {filteredUsers.map((user) => {
                   const RoleIcon = getRoleIcon(user.role);
                   const storeAdminEntry = getStoreAdminEntry(user.id);
                   const isAdmin = !!storeAdminEntry;
@@ -133,8 +163,8 @@ export default function SuperAdminUsersPage() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                            <User className="h-5 w-5 text-muted-foreground" />
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold">
+                            {user.full_name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div>
                             <p className="font-medium">{user.full_name || 'Unnamed'}</p>
@@ -151,7 +181,7 @@ export default function SuperAdminUsersPage() {
                           {isAdmin && (
                             <Badge variant="secondary" className="gap-1 w-fit">
                               <StoreIcon className="h-3 w-3" />
-                              Admin
+                              Store Admin
                             </Badge>
                           )}
                         </div>
@@ -205,9 +235,6 @@ export default function SuperAdminUsersPage() {
                   <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Untuk menjadikan Admin, gunakan tombol "Tambah Admin"
-              </p>
             </div>
           </div>
           <DialogFooter>

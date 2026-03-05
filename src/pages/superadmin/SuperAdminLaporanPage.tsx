@@ -3,7 +3,7 @@ import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, ShoppingBag, Store } from 'lucide-react';
+import { TrendingUp, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format-currency';
@@ -44,6 +44,19 @@ export default function SuperAdminLaporanPage() {
       const avgOrderValue = completed.length > 0 ? Math.round(totalRevenue / completed.length) : 0;
       const conversionRate = allOrders.length > 0 ? ((completed.length / allOrders.length) * 100).toFixed(1) : '0';
 
+      // Peak hour
+      const hourCounts = new Map<number, number>();
+      allOrders.forEach(o => {
+        const hour = new Date(o.created_at).getHours();
+        hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      });
+      let peakHour = '—';
+      if (hourCounts.size > 0) {
+        const sorted = [...hourCounts.entries()].sort((a, b) => b[1] - a[1]);
+        const h = sorted[0][0];
+        peakHour = `${h.toString().padStart(2, '0')}:00 - ${(h + 2).toString().padStart(2, '0')}:00`;
+      }
+
       // Top stores
       const storeMap = new Map<string, { name: string; revenue: number; orders: number }>();
       completed.forEach(o => {
@@ -55,7 +68,7 @@ export default function SuperAdminLaporanPage() {
       });
       const topStores = Array.from(storeMap.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-      return { chartData, totalRevenue, avgOrderValue, conversionRate, topStores, totalOrders: allOrders.length };
+      return { chartData, totalRevenue, avgOrderValue, conversionRate, peakHour, topStores, totalOrders: allOrders.length };
     },
   });
 
@@ -108,23 +121,32 @@ export default function SuperAdminLaporanPage() {
             </Card>
 
             {/* Platform Stats */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Card>
                 <CardContent className="p-3 text-center">
                   <p className="text-xl font-bold text-primary">{data?.conversionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Conversion</p>
+                  <p className="text-xs text-muted-foreground">Conversion Rate</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-3 text-center">
                   <p className="text-xl font-bold">{formatCurrency(data?.avgOrderValue || 0)}</p>
-                  <p className="text-xs text-muted-foreground">Avg Order</p>
+                  <p className="text-xs text-muted-foreground">Rata-rata Order</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-0.5">
+                    <Clock className="h-4 w-4 text-primary" />
+                  </div>
+                  <p className="text-sm font-bold">{data?.peakHour || '—'}</p>
+                  <p className="text-xs text-muted-foreground">Jam Sibuk</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-3 text-center">
                   <p className="text-xl font-bold">{data?.totalOrders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Order</p>
+                  <p className="text-xs text-muted-foreground">Total Pesanan</p>
                 </CardContent>
               </Card>
             </div>

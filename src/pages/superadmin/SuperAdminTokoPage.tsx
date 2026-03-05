@@ -1,19 +1,25 @@
+import { useState } from 'react';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Store, Eye } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Switch } from '@/components/ui/switch';
+import { Store, Package, ShoppingBag } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SuperAdminTokoPage() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: stores, isLoading } = useQuery({
     queryKey: ['sa-stores'],
     queryFn: async () => {
       const { data: storesData } = await supabase.from('stores').select('*').order('created_at', { ascending: false });
       const stores = storesData || [];
       
-      // Get product counts and order counts per store
       const enriched = await Promise.all(stores.map(async (store) => {
         const [prodRes, orderRes, adminRes] = await Promise.all([
           supabase.from('products').select('id', { count: 'exact', head: true }).eq('store_id', store.id),
@@ -21,7 +27,6 @@ export default function SuperAdminTokoPage() {
           supabase.from('store_admins').select('user_id').eq('store_id', store.id).limit(1),
         ]);
         
-        // Get admin name
         let adminName = '-';
         if (adminRes.data?.[0]) {
           const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', adminRes.data[0].user_id).single();
@@ -40,10 +45,26 @@ export default function SuperAdminTokoPage() {
     },
   });
 
+  const toggleActive = useMutation({
+    mutationFn: async ({ storeId, isActive }: { storeId: string; isActive: boolean }) => {
+      const { error } = await supabase.from('stores').update({ is_active: isActive }).eq('id', storeId);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['sa-stores'] });
+      toast({ title: vars.isActive ? 'Toko diaktifkan' : 'Toko dinonaktifkan' });
+    },
+    onError: (error) => {
+      toast({ title: 'Gagal mengubah status', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return (
     <SuperAdminLayout>
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Kelola Toko</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Kelola Toko</h1>
+        </div>
 
         {isLoading ? (
           <div className="space-y-3">
@@ -55,6 +76,7 @@ export default function SuperAdminTokoPage() {
               <Store className="h-8 w-8 text-muted-foreground" />
             </div>
             <p className="font-medium">Belum ada toko</p>
+            <p className="text-sm text-muted-foreground">Toko yang terdaftar akan muncul di sini</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -73,10 +95,20 @@ export default function SuperAdminTokoPage() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">Admin: {store.adminName}</p>
-                      <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                        <span>{store.productCount} produk</span>
-                        <span>{store.orderCount} pesanan</span>
+                      <div className="flex gap-4 mt-1.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {store.productCount} produk</span>
+                        <span className="flex items-center gap-1"><ShoppingBag className="h-3 w-3" /> {store.orderCount} pesanan</span>
                       </div>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <Switch
+                        checked={store.is_active}
+                        onCheckedChange={(checked) => toggleActive.mutate({ storeId: store.id, isActive: checked })}
+                        disabled={toggleActive.isPending}
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        {store.is_active ? 'Aktif' : 'Off'}
+                      </span>
                     </div>
                   </div>
                 </CardContent>

@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, Download, Store } from 'lucide-react';
+import { TrendingUp, Download, Store, Percent } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/format-currency';
 
 type Period = 'today' | 'month' | 'total';
+const COMMISSION_RATE = 0.10; // 10%
 
 export default function SuperAdminKeuanganPage() {
   const [period, setPeriod] = useState<Period>('month');
@@ -34,19 +36,22 @@ export default function SuperAdminKeuanganPage() {
       const allOrders = orders || [];
 
       const totalGMV = allOrders.reduce((sum, o) => sum + o.total, 0);
+      const totalCommission = Math.round(totalGMV * COMMISSION_RATE);
 
       // Per-store breakdown
-      const storeMap = new Map<string, { name: string; orders: number; revenue: number }>();
+      const storeMap = new Map<string, { name: string; orders: number; revenue: number; commission: number }>();
       allOrders.forEach(o => {
         const storeName = (o.stores as any)?.name || 'Unknown';
-        const existing = storeMap.get(o.store_id) || { name: storeName, orders: 0, revenue: 0 };
+        const existing = storeMap.get(o.store_id) || { name: storeName, orders: 0, revenue: 0, commission: 0 };
         existing.orders += 1;
         existing.revenue += o.total;
+        existing.commission += Math.round(o.total * COMMISSION_RATE);
         storeMap.set(o.store_id, existing);
       });
 
       return {
         totalGMV,
+        totalCommission,
         storeBreakdown: Array.from(storeMap.entries()).map(([id, data]) => ({ id, ...data })),
       };
     },
@@ -81,6 +86,19 @@ export default function SuperAdminKeuanganPage() {
               <p className="text-3xl font-bold">{formatCurrency(data?.totalGMV || 0)}</p>
             </div>
 
+            {/* Commission Card */}
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Percent className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">Komisi Platform (10%)</p>
+                  <p className="text-xl font-bold text-primary">{formatCurrency(data?.totalCommission || 0)}</p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Per-store breakdown */}
             <div>
               <h2 className="text-lg font-bold mb-3">Per Toko</h2>
@@ -96,7 +114,7 @@ export default function SuperAdminKeuanganPage() {
                   {data?.storeBreakdown.map((store) => (
                     <Card key={store.id}>
                       <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 mb-2">
                           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <Store className="h-5 w-5 text-primary" />
                           </div>
@@ -104,7 +122,19 @@ export default function SuperAdminKeuanganPage() {
                             <p className="font-semibold">{store.name}</p>
                             <p className="text-sm text-muted-foreground">{store.orders} pesanan</p>
                           </div>
-                          <p className="font-bold text-primary">{formatCurrency(store.revenue)}</p>
+                          <Badge variant={store.orders > 0 ? 'default' : 'outline'} className="text-xs">
+                            {store.orders > 0 ? '✅ Lunas' : '🕐 Belum'}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between text-sm border-t border-border pt-2 mt-2">
+                          <div>
+                            <p className="text-muted-foreground">Total Transaksi</p>
+                            <p className="font-semibold">{formatCurrency(store.revenue)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground">Komisi</p>
+                            <p className="font-semibold text-primary">{formatCurrency(store.commission)}</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

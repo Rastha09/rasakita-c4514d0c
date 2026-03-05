@@ -33,7 +33,7 @@ export function NotificationBell() {
         const { data: orders } = await supabase
           .from('orders')
           .select('id, order_code, created_at, order_status')
-          .in('order_status', ['NEW', 'PAID'])
+          .in('order_status', ['NEW', 'CONFIRMED'])
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -66,7 +66,7 @@ export function NotificationBell() {
           .from('orders')
           .select('id, order_code, created_at, order_status')
           .eq('store_id', storeAdmin.store_id)
-          .in('order_status', ['NEW', 'PAID'])
+          .in('order_status', ['NEW', 'CONFIRMED'])
           .order('created_at', { ascending: false })
           .limit(5);
 
