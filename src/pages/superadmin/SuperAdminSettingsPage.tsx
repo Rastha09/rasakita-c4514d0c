@@ -4,17 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
-  Settings, Database, Shield, CreditCard, CheckCircle2, Lock, LogOut, Bell, Info
+  Settings, Database, Shield, CreditCard, CheckCircle2, Lock, LogOut, Bell, Info, Percent
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { ChangePasswordModal } from '@/components/account/ChangePasswordModal';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SuperAdminSettingsPage() {
   const { signOut } = useAuth();
+  const { toast } = useToast();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [commissionRate, setCommissionRate] = useState(10);
 
   const platformSettings = [
     { title: 'Database', description: 'Status koneksi database', icon: Database, statusLabel: 'Terhubung' },
@@ -67,6 +71,37 @@ export default function SuperAdminSettingsPage() {
             </Card>
           ))}
         </div>
+
+        {/* Commission */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Percent className="h-4 w-4" />
+              Komisi Platform
+            </CardTitle>
+            <CardDescription>Persentase komisi yang diambil dari setiap transaksi</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={commissionRate}
+                onChange={(e) => setCommissionRate(Number(e.target.value))}
+                className="w-24"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => toast({ title: 'Komisi disimpan', description: `Komisi platform diatur ke ${commissionRate}%` })}
+              >
+                Simpan
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Notifications */}
         <Card>

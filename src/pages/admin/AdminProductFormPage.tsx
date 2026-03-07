@@ -26,8 +26,13 @@ import {
   useUploadProductImage,
   type ProductFormData 
 } from '@/hooks/useAdminProducts';
+import { useCategories } from '@/hooks/useCategories';
+import { useAuth } from '@/lib/auth';
 import { getProductImageUrl } from '@/lib/product-image';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 export default function AdminProductFormPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -35,7 +40,9 @@ export default function AdminProductFormPage() {
   const { toast } = useToast();
   const isNew = productId === 'new';
   
+  const { storeAdmin } = useAuth();
   const { data: existingProduct, isLoading: isLoadingProduct } = useAdminProduct(isNew ? '' : productId || '');
+  const { data: categories } = useCategories(storeAdmin?.store_id);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -276,6 +283,25 @@ export default function AdminProductFormPage() {
                   placeholder="100"
                 />
               </div>
+            </div>
+
+            {/* Category Selector */}
+            <div className="space-y-2">
+              <Label>Kategori</Label>
+              <Select 
+                value={form.category_id || 'none'} 
+                onValueChange={(v) => setForm(prev => ({ ...prev, category_id: v === 'none' ? undefined : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tanpa Kategori</SelectItem>
+                  {categories?.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
