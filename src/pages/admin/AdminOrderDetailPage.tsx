@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Truck, Store, CreditCard, Banknote, Package, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Truck, Store, CreditCard, Banknote, Package, CheckCircle, X, MapPin } from 'lucide-react';
 import { useAdminOrderDetail, useUpdateOrderStatus, type OrderStatus } from '@/hooks/useAdminOrders';
 import { formatCurrency, formatDateTime } from '@/lib/format-currency';
 import { fetchProductsByIds, getProductThumb, type ProductWithImages } from '@/lib/product-image';
@@ -35,13 +35,13 @@ export default function AdminOrderDetailPage() {
   const navigate = useNavigate();
   const { data: order, isLoading } = useAdminOrderDetail(orderId || '');
   const updateStatus = useUpdateOrderStatus();
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; nextStatus: OrderStatus | null }>({
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; nextStatus: OrderStatus | null; description: string }>({
     open: false,
     nextStatus: null,
+    description: '',
   });
   const [productImages, setProductImages] = useState<Map<string, ProductWithImages>>(new Map());
 
-  // Fetch product images for order items
   useEffect(() => {
     if (order?.items) {
       const productIds = order.items.map(item => item.product_id).filter(Boolean);
@@ -51,13 +51,12 @@ export default function AdminOrderDetailPage() {
     }
   }, [order?.items]);
 
-  const handleStatusChange = (nextStatus: OrderStatus) => {
-    setConfirmDialog({ open: true, nextStatus });
+  const handleStatusChange = (nextStatus: OrderStatus, description: string) => {
+    setConfirmDialog({ open: true, nextStatus, description });
   };
 
   const confirmStatusChange = () => {
     if (order && confirmDialog.nextStatus) {
-      // If COD order being moved to PROCESSING, also update payment status
       const shouldUpdatePayment = order.order_status === 'NEW' && 
                                    order.payment_method === 'COD' && 
                                    confirmDialog.nextStatus === 'PROCESSING';
@@ -68,18 +67,21 @@ export default function AdminOrderDetailPage() {
           newStatus: confirmDialog.nextStatus,
           updatePayment: shouldUpdatePayment
         },
-        { onSuccess: () => setConfirmDialog({ open: false, nextStatus: null }) }
+        { onSuccess: () => setConfirmDialog({ open: false, nextStatus: null, description: '' }) }
       );
     }
   };
 
-  // NEW orders need to be marked as PAID (confirmed) first, or go directly to PROCESSING if COD
-  const canConfirmPayment = order?.order_status === 'NEW' && order?.payment_method === 'COD';
-  const canProcess = order?.order_status === 'CONFIRMED' || (order?.order_status === 'NEW' && order?.payment_status === 'PAID');
-  const canComplete = order?.order_status === 'PROCESSING';
-  
-  // Block processing if QRIS payment not yet paid
+  const handleReject = () => {
+    handleStatusChange('CANCELED', 'Pesanan akan dibatalkan. Tindakan ini tidak dapat dikembalikan.');
+  };
+
+  // Status checks
+  const isNew = order?.order_status === 'NEW' || order?.order_status === 'CONFIRMED';
+  const isProcessing = order?.order_status === 'PROCESSING';
+  const isDelivering = order?.order_status === 'OUT_FOR_DELIVERY' || order?.order_status === 'READY_FOR_PICKUP';
   const isQrisUnpaid = order?.payment_method === 'QRIS' && order?.payment_status !== 'PAID';
+  const address = order?.customer_address as Record<string, any> | null;
 
   if (isLoading) {
     return (
@@ -121,6 +123,25 @@ export default function AdminOrderDetailPage() {
           </Badge>
         </div>
 
+        {/* Customer Info */}
+        {address && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">{address.recipient_name || address.name || 'Pelanggan'}</p>
+                  {address.phone && <p className="text-sm text-muted-foreground">{address.phone}</p>}
+                  {(address.address || address.address_line) && (
+                    <p className="text-sm text-muted-foreground">{address.address || address.address_line}</p>
+                  )}
+                  {address.city && <p className="text-sm text-muted-foreground">{address.city} {address.postal_code || ''}</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Order Info */}
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -134,11 +155,6 @@ export default function AdminOrderDetailPage() {
                 <p className="font-medium">
                   {order.shipping_method === 'PICKUP' ? 'Ambil di Tempat' : 'Pengiriman Kurir'}
                 </p>
-                {order.customer_address && (
-                  <p className="text-sm text-muted-foreground">
-                    {(order.customer_address as { address?: string })?.address}
-                  </p>
-                )}
               </div>
             </div>
             <Separator />
@@ -218,53 +234,64 @@ export default function AdminOrderDetailPage() {
           </Card>
         )}
 
-        {/* Actions */}
+        {/* Actions - Full Status Flow */}
         <div className="space-y-2">
-          {/* For COD orders that are NEW - confirm payment and process */}
-          {canConfirmPayment && (
-            <Button 
-              onClick={() => handleStatusChange('PROCESSING')} 
-              className="w-full" 
-              size="lg"
-              disabled={updateStatus.isPending}
-            >
-              {updateStatus.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              )}
-              Konfirmasi & Proses Pesanan
-            </Button>
+          {/* NEW orders: Terima & Proses + Tolak */}
+          {isNew && !isQrisUnpaid && (
+            <>
+              <Button 
+                onClick={() => handleStatusChange('PROCESSING', 'Pesanan akan dipindahkan ke status "Diproses". Lanjutkan?')} 
+                className="w-full" 
+                size="lg"
+                disabled={updateStatus.isPending}
+              >
+                {updateStatus.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                Terima & Proses Pesanan
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full border-destructive text-destructive hover:bg-destructive/10" 
+                size="lg"
+                onClick={handleReject}
+                disabled={updateStatus.isPending}
+              >
+                <X className="h-4 w-4 mr-2" /> Tolak Pesanan
+              </Button>
+            </>
           )}
           
-          {/* For QRIS orders that are NEW but unpaid */}
-          {order?.order_status === 'NEW' && isQrisUnpaid && (
-            <Button disabled className="w-full" size="lg">
-              Menunggu Pembayaran QRIS
-            </Button>
+          {/* NEW + QRIS unpaid */}
+          {isNew && isQrisUnpaid && (
+            <>
+              <Button disabled className="w-full" size="lg">
+                Menunggu Pembayaran QRIS
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full border-destructive text-destructive hover:bg-destructive/10" 
+                size="lg"
+                onClick={handleReject}
+                disabled={updateStatus.isPending}
+              >
+                <X className="h-4 w-4 mr-2" /> Tolak Pesanan
+              </Button>
+            </>
           )}
           
-          {/* For PAID orders - can process */}
-          {order?.order_status === 'CONFIRMED' && (
+          {/* PROCESSING → Tandai Dikirim / Siap Diambil */}
+          {isProcessing && (
             <Button 
-              onClick={() => handleStatusChange('PROCESSING')} 
-              className="w-full" 
-              size="lg"
-              disabled={updateStatus.isPending}
-            >
-              {updateStatus.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Package className="h-4 w-4 mr-2" />
-              )}
-              Proses Pesanan
-            </Button>
-          )}
-          
-          {/* For PROCESSING orders - can complete */}
-          {canComplete && (
-            <Button 
-              onClick={() => handleStatusChange('COMPLETED')} 
+              onClick={() => {
+                const nextStatus: OrderStatus = order.shipping_method === 'PICKUP' ? 'READY_FOR_PICKUP' : 'OUT_FOR_DELIVERY';
+                const desc = order.shipping_method === 'PICKUP' 
+                  ? 'Pesanan akan ditandai sebagai "Siap Diambil". Lanjutkan?'
+                  : 'Pesanan akan ditandai sebagai "Dikirim". Lanjutkan?';
+                handleStatusChange(nextStatus, desc);
+              }}
               className="w-full" 
               size="lg"
               disabled={updateStatus.isPending}
@@ -274,21 +301,36 @@ export default function AdminOrderDetailPage() {
               ) : (
                 <Truck className="h-4 w-4 mr-2" />
               )}
-              Selesaikan Pesanan
+              {order.shipping_method === 'PICKUP' ? 'Tandai Siap Diambil' : 'Tandai Dikirim'}
+            </Button>
+          )}
+
+          {/* OUT_FOR_DELIVERY / READY_FOR_PICKUP → Konfirmasi Selesai */}
+          {isDelivering && (
+            <Button 
+              onClick={() => handleStatusChange('COMPLETED', 'Pesanan akan ditandai sebagai selesai. Stok akan otomatis berkurang. Lanjutkan?')}
+              className="w-full bg-emerald-600 hover:bg-emerald-700" 
+              size="lg"
+              disabled={updateStatus.isPending}
+            >
+              {updateStatus.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Konfirmasi Selesai
             </Button>
           )}
         </div>
       </div>
 
       {/* Confirm Dialog */}
-      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ open, nextStatus: null })}>
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ open, nextStatus: null, description: '' })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Perubahan Status</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.nextStatus === 'PROCESSING' 
-                ? 'Pesanan akan dipindahkan ke status "Diproses". Lanjutkan?'
-                : 'Pesanan akan ditandai sebagai selesai. Stok akan otomatis berkurang. Lanjutkan?'}
+              {confirmDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
