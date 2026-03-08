@@ -21,13 +21,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const orderStatusLabels: Record<string, string> = {
-  NEW: 'Baru', CONFIRMED: 'Dikonfirmasi', PROCESSING: 'Diproses', OUT_FOR_DELIVERY: 'Dikirim', READY_FOR_PICKUP: 'Siap Diambil', COMPLETED: 'Selesai', CANCELED: 'Dibatalkan',
+  PENDING_PAYMENT: 'Belum Bayar', NEW: 'Baru', CONFIRMED: 'Dikonfirmasi', PROCESSING: 'Diproses', OUT_FOR_DELIVERY: 'Dikirim', READY_FOR_PICKUP: 'Siap Diambil', COMPLETED: 'Selesai', CANCELED: 'Dibatalkan',
 };
 const paymentStatusLabels: Record<string, string> = {
   UNPAID: 'Belum Bayar', PAID: 'Lunas', EXPIRED: 'Kedaluwarsa', FAILED: 'Gagal', REFUNDED: 'Refund',
 };
-const orderStatusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  NEW: 'outline', CONFIRMED: 'default', PROCESSING: 'secondary', OUT_FOR_DELIVERY: 'default', READY_FOR_PICKUP: 'default', COMPLETED: 'default', CANCELED: 'destructive',
+const orderStatusColors: Record<string, string> = {
+  PENDING_PAYMENT: 'bg-amber-100 text-amber-700', NEW: 'bg-blue-100 text-blue-700', CONFIRMED: 'bg-purple-100 text-purple-700', PROCESSING: 'bg-orange-100 text-orange-700', OUT_FOR_DELIVERY: 'bg-violet-100 text-violet-700', READY_FOR_PICKUP: 'bg-green-100 text-green-700', COMPLETED: 'bg-green-100 text-green-700', CANCELED: 'bg-red-100 text-red-700',
 };
 
 export default function SuperAdminOrdersPage() {
@@ -153,7 +153,7 @@ export default function SuperAdminOrdersPage() {
                     </TableCell>
                     <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                     <TableCell>
-                      <Badge variant={orderStatusVariants[order.order_status] || 'outline'}>
+                      <Badge className={`text-xs rounded-full ${orderStatusColors[order.order_status] || ''}`}>
                         {orderStatusLabels[order.order_status] || order.order_status}
                       </Badge>
                     </TableCell>
@@ -179,7 +179,7 @@ export default function SuperAdminOrdersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedOrder?.order_code}
-              <Badge variant={orderStatusVariants[selectedOrder?.order_status] || 'outline'} className="text-xs">
+              <Badge className={`text-xs rounded-full ${orderStatusColors[selectedOrder?.order_status] || ''}`}>
                 {orderStatusLabels[selectedOrder?.order_status] || selectedOrder?.order_status}
               </Badge>
             </DialogTitle>

@@ -81,6 +81,7 @@ export default function CheckoutPage() {
   const shippingFee = shippingMethod === 'COURIER' ? (settings?.shipping_fee_flat || 10000) : 0;
   const total = subtotal + shippingFee;
 
+  // COD order: status = NEW
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       if (!storeInfo || !user) throw new Error('Missing data');
@@ -101,6 +102,7 @@ export default function CheckoutPage() {
     onError: (error) => { console.error('Order error:', error); toast.error('Gagal membuat pesanan. Silakan coba lagi.'); },
   });
 
+  // QRIS order: status = PENDING_PAYMENT (waiting for payment)
   const createQrisOrderMutation = useMutation({
     mutationFn: async () => {
       if (!storeInfo || !user || !session?.access_token) throw new Error('Missing data');
@@ -111,7 +113,7 @@ export default function CheckoutPage() {
       const { data: order, error } = await supabase.from('orders').insert({
         store_id: storeInfo.id, customer_id: user.id, order_code: orderCode, items: orderItems,
         subtotal, shipping_fee: shippingFee, total, shipping_method: shippingMethod,
-        payment_method: 'QRIS', payment_status: 'UNPAID', order_status: 'NEW',
+        payment_method: 'QRIS', payment_status: 'UNPAID', order_status: 'PENDING_PAYMENT',
         customer_address: customerAddress, notes: addressForm.notes || null,
       }).select().single();
       if (error) throw error;

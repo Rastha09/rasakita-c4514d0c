@@ -26,6 +26,7 @@ export default function AdminDashboard() {
     { label: 'Pendapatan Hari Ini', value: formatCurrency(stats?.revenueToday ?? 0), icon: TrendingUp, color: 'bg-accent', description: 'Total penjualan', isText: true },
   ];
 
+  // Only show NEW orders (not PENDING_PAYMENT) in recent orders
   const last3Orders = recentOrders
     ?.filter(o => o.order_status === 'NEW' || o.order_status === 'CONFIRMED')
     .slice(0, 3) || [];
@@ -42,7 +43,6 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Welcome Banner */}
         <div className="gradient-primary rounded-2xl p-5 text-primary-foreground">
           <h1 className="text-xl font-bold">Selamat Datang, {profile?.full_name || 'Admin'}! 👋</h1>
           <p className="text-sm opacity-90 mt-1">Admin Panel • Kelola toko Anda</p>
@@ -91,7 +91,6 @@ export default function AdminDashboard() {
               </Card>
             )}
 
-            {/* Out of Stock Warning */}
             {outOfStockProducts.length > 0 && (
               <Card className="border-warning/30 bg-warning/5">
                 <CardContent className="p-4">
@@ -111,7 +110,6 @@ export default function AdminDashboard() {
               </Card>
             )}
 
-            {/* Recent Orders */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold">Pesanan Terbaru</h2>
@@ -142,7 +140,7 @@ export default function AdminDashboard() {
                             <p className="text-xs text-muted-foreground">{formatDateTime(order.created_at)}</p>
                           </div>
                           <div className="flex gap-1.5">
-                            <Badge variant="default" className="text-xs">Pesanan Baru</Badge>
+                            <Badge className="text-xs bg-blue-100 text-blue-700 rounded-full">Pesanan Baru</Badge>
                             <Badge variant="secondary" className="text-xs flex items-center gap-1">
                               {order.shipping_method === 'PICKUP' ? <Store className="h-3 w-3" /> : <Truck className="h-3 w-3" />}
                               {order.shipping_method === 'PICKUP' ? 'Ambil' : 'Kurir'}
@@ -152,20 +150,10 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between">
                           <p className="text-lg font-bold text-primary">{formatCurrency(order.total)}</p>
                           <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleProcess(order.id, order.payment_method, order.order_status)}
-                              disabled={updateStatus.isPending}
-                            >
+                            <Button size="sm" onClick={() => handleProcess(order.id, order.payment_method, order.order_status)} disabled={updateStatus.isPending}>
                               <Check className="h-3.5 w-3.5 mr-1" /> Proses
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="border-destructive text-destructive hover:bg-destructive/10"
-                              onClick={() => handleReject(order.id)}
-                              disabled={updateStatus.isPending}
-                            >
+                            <Button size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => handleReject(order.id)} disabled={updateStatus.isPending}>
                               <X className="h-3.5 w-3.5 mr-1" /> Tolak
                             </Button>
                           </div>

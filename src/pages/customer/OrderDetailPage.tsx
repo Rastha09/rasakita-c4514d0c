@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot, Star } from 'lucide-react';
+import { ArrowLeft, Loader2, Truck, Store, MapPin, Banknote, CheckCircle2, Clock, Package, CircleDot, Star, CreditCard, XCircle } from 'lucide-react';
 import { CustomerLayout } from '@/components/layouts/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,14 +15,58 @@ import { id as localeId } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const STATUS_LABELS: Record<string, string> = { NEW: 'Pesanan Baru', CONFIRMED: 'Dikonfirmasi', PROCESSING: 'Diproses', OUT_FOR_DELIVERY: 'Dalam Pengiriman', READY_FOR_PICKUP: 'Siap Diambil', COMPLETED: 'Selesai', CANCELED: 'Dibatalkan' };
-const STATUS_COLORS: Record<string, string> = { NEW: 'bg-blue-100 text-blue-700', CONFIRMED: 'bg-purple-100 text-purple-700', PROCESSING: 'bg-yellow-100 text-yellow-700', OUT_FOR_DELIVERY: 'bg-orange-100 text-orange-700', READY_FOR_PICKUP: 'bg-green-100 text-green-700', COMPLETED: 'bg-green-100 text-green-700', CANCELED: 'bg-red-100 text-red-700' };
+const STATUS_LABELS: Record<string, string> = {
+  PENDING_PAYMENT: 'Menunggu Pembayaran',
+  NEW: 'Pesanan Baru',
+  CONFIRMED: 'Dikonfirmasi',
+  PROCESSING: 'Diproses',
+  OUT_FOR_DELIVERY: 'Dalam Pengiriman',
+  READY_FOR_PICKUP: 'Siap Diambil',
+  COMPLETED: 'Selesai',
+  CANCELED: 'Dibatalkan',
+};
+const STATUS_COLORS: Record<string, string> = {
+  PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
+  NEW: 'bg-blue-100 text-blue-700',
+  CONFIRMED: 'bg-purple-100 text-purple-700',
+  PROCESSING: 'bg-orange-100 text-orange-700',
+  OUT_FOR_DELIVERY: 'bg-violet-100 text-violet-700',
+  READY_FOR_PICKUP: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  CANCELED: 'bg-red-100 text-red-700',
+};
 
-const TIMELINE_COURIER = ['NEW', 'CONFIRMED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'COMPLETED'];
-const TIMELINE_PICKUP = ['NEW', 'CONFIRMED', 'PROCESSING', 'READY_FOR_PICKUP', 'COMPLETED'];
+const TIMELINE_COURIER = ['NEW', 'PROCESSING', 'OUT_FOR_DELIVERY', 'COMPLETED'];
+const TIMELINE_PICKUP = ['NEW', 'PROCESSING', 'READY_FOR_PICKUP', 'COMPLETED'];
 
 interface OrderItem { product_id: string; name: string; price: number; qty: number; notes?: string; subtotal: number; }
 interface CustomerAddress { name: string; phone: string; address: string; }
+
+function PaymentCountdown({ expiredAt, onExpired }: { expiredAt: string; onExpired?: () => void }) {
+  const [countdown, setCountdown] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(expiredAt).getTime() - Date.now();
+      if (diff <= 0) { setCountdown('Kedaluwarsa'); setIsExpired(true); onExpired?.(); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiredAt, onExpired]);
+
+  return (
+    <div className="text-center">
+      <p className="text-sm text-muted-foreground mb-1">Bayar sebelum</p>
+      <p className={cn('text-2xl font-bold font-mono', isExpired ? 'text-destructive' : 'text-amber-600')}>{countdown}</p>
+    </div>
+  );
+}
 
 export default function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -32,7 +76,7 @@ export default function OrderDetailPage() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string } | null>(null);
 
-  const { data: orderData, isLoading } = useQuery({
+  const { data: orderData, isLoading, refetch } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
       if (!orderId) throw new Error('No order ID');
@@ -50,6 +94,11 @@ export default function OrderDetailPage() {
       return { order, settings, payment, productsMap };
     },
     enabled: !!orderId && !!user,
+    refetchInterval: (query) => {
+      const status = query.state.data?.order?.order_status;
+      if (status === 'PENDING_PAYMENT') return 5000;
+      return false;
+    },
   });
 
   const { data: existingReviews } = useQuery({
@@ -78,6 +127,20 @@ export default function OrderDetailPage() {
     onError: (error) => { console.error('Create invoice error:', error); toast.error('Gagal membuat invoice pembayaran'); },
   });
 
+  const cancelOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (!orderId) throw new Error('No order ID');
+      const { error } = await supabase.from('orders').update({ order_status: 'CANCELED' }).eq('id', orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Pesanan dibatalkan');
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: () => toast.error('Gagal membatalkan pesanan'),
+  });
+
   const handlePayNow = () => {
     const payment = orderData?.payment;
     if (payment && payment.status === 'PENDING' && payment.expired_at && new Date(payment.expired_at) > new Date()) {
@@ -93,15 +156,17 @@ export default function OrderDetailPage() {
 
   const items = (order.items as unknown as OrderItem[]) || [];
   const customerAddress = order.customer_address as unknown as CustomerAddress | null;
+  const isPendingPayment = order.order_status === 'PENDING_PAYMENT';
   const timeline = order.shipping_method === 'COURIER' ? TIMELINE_COURIER : TIMELINE_PICKUP;
   const currentStatusIndex = timeline.indexOf(order.order_status);
   const productsMap = orderData?.productsMap;
   const isCompleted = order.order_status === 'COMPLETED';
   const canReview = (productId: string) => isCompleted && !existingReviews?.includes(productId);
   const handleOpenReview = (productId: string, productName: string) => { setSelectedProduct({ id: productId, name: productName }); setReviewModalOpen(true); };
-  const isQrisUnpaid = order.payment_method === 'QRIS' && order.payment_status === 'UNPAID';
+  const payment = orderData?.payment;
+  const isQrisUnpaid = order.payment_method === 'QRIS' && order.payment_status === 'UNPAID' && !isPendingPayment;
   const isQrisExpired = order.payment_method === 'QRIS' && order.payment_status === 'EXPIRED';
-  const needsPaymentAction = isQrisUnpaid || isQrisExpired;
+  const needsPaymentAction = (isQrisUnpaid || isQrisExpired) && order.order_status !== 'CANCELED';
 
   return (
     <CustomerLayout>
@@ -113,7 +178,36 @@ export default function OrderDetailPage() {
 
         <div className="mb-6"><Badge className={cn('rounded-full text-sm px-3 py-1', STATUS_COLORS[order.order_status])}>{STATUS_LABELS[order.order_status]}</Badge></div>
 
-        {order.order_status !== 'CANCELED' && (
+        {/* Pending Payment Banner */}
+        {isPendingPayment && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="h-5 w-5 text-amber-600" />
+              <h2 className="font-semibold text-amber-800">Menunggu Pembayaran</h2>
+            </div>
+            {payment?.expired_at && (
+              <PaymentCountdown expiredAt={payment.expired_at} onExpired={() => refetch()} />
+            )}
+            <div className="mt-4 space-y-2">
+              <Button className="w-full rounded-full" onClick={handlePayNow} disabled={createInvoiceMutation.isPending}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                {createInvoiceMutation.isPending ? 'Memproses...' : 'Bayar Sekarang'}
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full rounded-full border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => cancelOrderMutation.mutate()}
+                disabled={cancelOrderMutation.isPending}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Batalkan Pesanan
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline - only show for non-pending-payment and non-canceled */}
+        {!isPendingPayment && order.order_status !== 'CANCELED' && (
           <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
             <h2 className="font-semibold mb-4">Status Pesanan</h2>
             <div className="relative">
@@ -148,7 +242,7 @@ export default function OrderDetailPage() {
         <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
           <h2 className="font-semibold flex items-center gap-2 mb-3"><Banknote className="h-4 w-4" /> Pembayaran</h2>
           <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Metode</span><span className="text-sm font-medium">{order.payment_method === 'COD' ? 'COD (Bayar di Tempat)' : 'QRIS'}</span></div>
-          <div className="flex items-center justify-between mt-1"><span className="text-sm text-muted-foreground">Status</span><Badge variant={order.payment_status === 'PAID' ? 'default' : 'secondary'} className="rounded-full">{order.payment_status === 'PAID' ? 'Lunas' : 'Belum Bayar'}</Badge></div>
+          <div className="flex items-center justify-between mt-1"><span className="text-sm text-muted-foreground">Status</span><Badge variant={order.payment_status === 'PAID' ? 'default' : 'secondary'} className="rounded-full">{order.payment_status === 'PAID' ? 'Lunas' : isPendingPayment ? 'Menunggu Pembayaran' : 'Belum Bayar'}</Badge></div>
         </div>
 
         <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
