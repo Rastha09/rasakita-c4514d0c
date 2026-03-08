@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,9 +19,7 @@ serve(async (req) => {
     const merchantCode = Deno.env.get('DUITKU_MERCHANT_CODE')!;
     const apiKey = Deno.env.get('DUITKU_API_KEY')!;
 
-    // Parse callback data - Duitku sends form-urlencoded or JSON
     let callbackData: Record<string, string>;
-    
     const contentType = req.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       callbackData = await req.json();
@@ -44,7 +41,7 @@ serve(async (req) => {
       resultCode,
     } = callbackData;
 
-    // Validate signature: MD5(merchantCode + amount + merchantOrderId + apiKey)
+    // Validate signature
     const signatureString = merchantCode + amount + merchantOrderId + apiKey;
     const encoder = new TextEncoder();
     const data = encoder.encode(signatureString);
@@ -60,7 +57,7 @@ serve(async (req) => {
       });
     }
 
-    // Find payment by reference or invoice_id
+    // Find payment
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .select('*, orders(*)')
@@ -75,7 +72,7 @@ serve(async (req) => {
       });
     }
 
-    // Idempotent check - if already SUCCESS, don't reprocess
+    // Idempotent check
     if (payment.status === 'SUCCESS') {
       console.log('Payment already processed:', payment.id);
       return new Response(JSON.stringify({ success: true, message: 'Already processed' }), {
@@ -83,21 +80,21 @@ serve(async (req) => {
       });
     }
 
-    // Map result code to status
-    // 00 = Success, 01 = Pending, 02 = Canceled/Failed
     let paymentStatus: string;
     let orderPaymentStatus: string;
     let orderStatus: string | null = null;
 
     if (resultCode === '00') {
+      // SUCCESS → payment PAID, order becomes NEW (ready for admin)
       paymentStatus = 'SUCCESS';
       orderPaymentStatus = 'PAID';
-      orderStatus = 'CONFIRMED';
+      orderStatus = 'NEW';
     } else if (resultCode === '02') {
+      // FAILED/CANCELED → payment FAILED, order CANCELED
       paymentStatus = 'FAILED';
       orderPaymentStatus = 'FAILED';
+      orderStatus = 'CANCELED';
     } else {
-      // Still pending or unknown, don't update
       console.log('Callback received but status still pending:', resultCode);
       return new Response(JSON.stringify({ success: true, message: 'Status pending' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -129,9 +126,8 @@ serve(async (req) => {
       console.error('Failed to update order:', updateOrderError);
     }
 
-    // Update sold_count if payment SUCCESS and not already counted
+    // If payment SUCCESS, update sold_count
     if (paymentStatus === 'SUCCESS') {
-      // Fetch order to check sold_counted flag and get items
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .select('id, items, sold_counted')
@@ -139,24 +135,19 @@ serve(async (req) => {
         .single();
 
       if (!orderError && order && !order.sold_counted) {
-        // Parse items and update sold_count for each product
         const items = order.items as Array<{ product_id: string; qty: number }>;
-        
         if (Array.isArray(items)) {
           for (const item of items) {
-            // Increment sold_count using database function
             const { error: updateProductError } = await supabase.rpc('increment_sold_count', {
               p_product_id: item.product_id,
               p_qty: item.qty
             });
-
             if (updateProductError) {
               console.error('Failed to update sold_count for product:', item.product_id, updateProductError);
             }
           }
         }
 
-        // Mark order as sold_counted
         const { error: markCountedError } = await supabase
           .from('orders')
           .update({ sold_counted: true })
@@ -165,21 +156,18 @@ serve(async (req) => {
         if (markCountedError) {
           console.error('Failed to mark order as sold_counted:', markCountedError);
         }
-
-        console.log('Updated sold_count for order:', payment.order_id);
       }
-
-      console.log('Payment successful, push notification placeholder', {
-        orderId: payment.order_id,
-        orderCode: payment.orders?.order_code,
-      });
     }
+
+    // If payment FAILED → also restore stock if it was somehow deducted (safety)
+    // Note: stock is only deducted on COMPLETED+PAID, so this is mainly for future safety
 
     console.log('Callback processed successfully:', {
       paymentId: payment.id,
       orderId: payment.order_id,
       paymentStatus,
       orderPaymentStatus,
+      orderStatus,
     });
 
     return new Response(JSON.stringify({ success: true }), {
