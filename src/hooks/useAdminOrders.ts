@@ -160,7 +160,7 @@ export function useAdminDashboardStats() {
 
       const allOrders = orders || [];
 
-      // Calculate stats - NEW and PAID both count as new orders
+      // Calculate stats - only NEW and CONFIRMED count as new orders (not PENDING_PAYMENT)
       const newOrders = allOrders.filter(o => o.order_status === 'NEW' || o.order_status === 'CONFIRMED').length;
       const processing = allOrders.filter(o => o.order_status === 'PROCESSING').length;
       
