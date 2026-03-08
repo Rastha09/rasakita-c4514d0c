@@ -153,7 +153,7 @@ export default function SuperAdminOrdersPage() {
                     </TableCell>
                     <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                     <TableCell>
-                      <Badge variant={orderStatusVariants[order.order_status] || 'outline'}>
+                      <Badge className={`text-xs rounded-full ${orderStatusColors[order.order_status] || ''}`}>
                         {orderStatusLabels[order.order_status] || order.order_status}
                       </Badge>
                     </TableCell>
@@ -179,7 +179,7 @@ export default function SuperAdminOrdersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedOrder?.order_code}
-              <Badge variant={orderStatusVariants[selectedOrder?.order_status] || 'outline'} className="text-xs">
+              <Badge className={`text-xs rounded-full ${orderStatusColors[selectedOrder?.order_status] || ''}`}>
                 {orderStatusLabels[selectedOrder?.order_status] || selectedOrder?.order_status}
               </Badge>
             </DialogTitle>
